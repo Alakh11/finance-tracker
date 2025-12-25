@@ -1,9 +1,8 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { 
   LayoutDashboard, 
   PieChart, 
   Wallet, 
-  Settings, 
   LogOut, 
   Menu,
   X,
