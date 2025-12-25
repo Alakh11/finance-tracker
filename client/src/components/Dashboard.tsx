@@ -8,7 +8,7 @@ import type { User, Transaction, DashboardStats } from '../types';
 
 interface DashboardProps {
   user: User;
-}
+} 
 
 const StatCard = ({ title, amount, icon: Icon,  }: any) => {
 //   const styles = {
