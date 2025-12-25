@@ -23,46 +23,36 @@ a:hover {
 }
 
 body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
+  /* Fix alignment issues */
+  display: block; 
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Soft, smooth interaction for everything */
+* {
+  transition-property: background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
+/* Custom "Creamy" Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
 }
-button:hover {
-  border-color: #646cff;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+::-webkit-scrollbar-thumb {
+  @apply bg-stone-200 rounded-full border-2 border-[#FAFAF9];
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-stone-300;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Utility to center main content like a card */
+.layout-container {
+  @apply max-w-7xl mx-auto;
 }
