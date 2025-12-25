@@ -1,61 +1,80 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
+from datetime import date
 import mysql.connector
 import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
-
 app = FastAPI()
 
-# Enable CORS so your React app can talk to this Python backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, replace with your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Database Connection
-def get_db_connection():
+def get_db():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
         port=os.getenv("DB_PORT"),
-        database=os.getenv("DB_NAME")
+        database=os.getenv("DB_NAME"),
+        ssl_verify_cert=True,
+        ssl_verify_identity=True
     )
 
-# Data Model
-class Transaction(BaseModel):
-    amount: float
-    category: str
-    type: str
+class TransactionCreate(BaseModel):
     user_email: str
+    amount: float
+    type: str # 'income' or 'expense'
+    category: str
+    date: str # 'YYYY-MM-DD'
+    payment_mode: str
+    note: Optional[str] = None
 
-@app.get("/")
-def read_root():
-    return {"message": "Finance Tracker API is running"}
-
-@app.post("/add-transaction")
-def add_transaction(tx: Transaction):
-    conn = get_db_connection()
+@app.post("/transactions")
+def add_transaction(tx: TransactionCreate):
+    conn = get_db()
     cursor = conn.cursor()
-    query = "INSERT INTO transactions (amount, category, type, user_email) VALUES (%s, %s, %s, %s)"
-    cursor.execute(query, (tx.amount, tx.category, tx.type, tx.user_email))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return {"message": "Transaction added successfully"}
+    try:
+        query = """
+        INSERT INTO transactions 
+        (user_email, amount, type, category_id, payment_mode, date, note) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (tx.user_email, tx.amount, tx.type, 1, tx.payment_mode, tx.date, tx.note))
+        conn.commit()
+        return {"message": "Transaction Saved"}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
-@app.get("/transactions/{email}")
-def get_transactions(email: str):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True) # Returns data as JSON objects
-    cursor.execute("SELECT * FROM transactions WHERE user_email = %s", (email,))
-    results = cursor.fetchall()
-    cursor.close()
+@app.get("/dashboard/{email}")
+def get_dashboard(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    # 1. Get Total Income & Expense
+    cursor.execute("""
+        SELECT type, SUM(amount) as total 
+        FROM transactions WHERE user_email = %s GROUP BY type
+    """, (email,))
+    totals = cursor.fetchall()
+    
+    # 2. Get Recent Transactions
+    cursor.execute("""
+        SELECT * FROM transactions 
+        WHERE user_email = %s ORDER BY date DESC LIMIT 5
+    """, (email,))
+    recent = cursor.fetchall()
+    
     conn.close()
-    return results
+    return {"totals": totals, "recent": recent}
