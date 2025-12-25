@@ -10,12 +10,12 @@ interface DashboardProps {
   user: User;
 }
 
-const StatCard = ({ title, amount, icon: Icon, type }: any) => {
-  const styles = {
-    balance: { bg: 'bg-stone-800', iconBg: 'bg-stone-700', text: 'text-white', sub: 'text-stone-400' },
-    income: { bg: 'bg-white', iconBg: 'bg-[#F0FDF4]', text: 'text-stone-800', sub: 'text-stone-400', iconColor: 'text-emerald-600' },
-    expense: { bg: 'bg-white', iconBg: 'bg-[#FEF2F2]', text: 'text-stone-800', sub: 'text-stone-400', iconColor: 'text-rose-600' },
-  }[type as 'balance' | 'income' | 'expense'];
+const StatCard = ({ title, amount, icon: Icon,  }: any) => {
+//   const styles = {
+//     balance: { bg: 'bg-stone-800', iconBg: 'bg-stone-700', text: 'text-white', sub: 'text-stone-400' },
+//     income: { bg: 'bg-white', iconBg: 'bg-[#F0FDF4]', text: 'text-stone-800', sub: 'text-stone-400', iconColor: 'text-emerald-600' },
+//     expense: { bg: 'bg-white', iconBg: 'bg-[#FEF2F2]', text: 'text-stone-800', sub: 'text-stone-400', iconColor: 'text-rose-600' },
+//   }[type as 'balance' | 'income' | 'expense'];
 
   return (
     <div className={` p-6 rounded-[1.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-100/50 hover:-translate-y-1 transition-transform duration-300`}>
