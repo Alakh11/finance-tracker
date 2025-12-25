@@ -37,8 +37,8 @@ def get_db():
             password=os.getenv("DB_PASSWORD"),
             port=os.getenv("DB_PORT"),
             database=os.getenv("DB_NAME"),
-            ssl_verify_cert=True,
-            ssl_verify_identity=True
+            ssl_verify_cert=False,
+            ssl_verify_identity=False
         )
     except Exception as e:
         logger.error(f"Database Connection Failed: {e}")
