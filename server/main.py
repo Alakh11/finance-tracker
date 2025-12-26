@@ -48,11 +48,12 @@ def get_db():
 class TransactionCreate(BaseModel):
     user_email: str
     amount: float
-    type: str 
+    type: str
     category: str
-    date: str 
+    date: str
     payment_mode: str
     note: Optional[str] = None
+    is_recurring: bool = False
 
 class BudgetUpdate(BaseModel):
     user_email: str
@@ -70,18 +71,17 @@ def add_transaction(tx: TransactionCreate):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # 1. Find Category ID (Logic: If category exists, get ID. If not, use 'General')
+        # Get Category ID
         cursor.execute("SELECT id FROM categories WHERE name = %s AND user_email = %s", (tx.category, tx.user_email))
         result = cursor.fetchone()
-        
-        cat_id = result[0] if result else 1 # Default to 1 if not found. Ideally, handle this better.
+        cat_id = result[0] if result else 1 
 
         query = """
         INSERT INTO transactions 
-        (user_email, amount, type, category_id, payment_mode, date, note) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        (user_email, amount, type, category_id, payment_mode, date, note, is_recurring) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
-        cursor.execute(query, (tx.user_email, tx.amount, tx.type, cat_id, tx.payment_mode, tx.date, tx.note))
+        cursor.execute(query, (tx.user_email, tx.amount, tx.type, cat_id, tx.payment_mode, tx.date, tx.note, tx.is_recurring))
         conn.commit()
         return {"message": "Transaction Saved"}
     except Exception as e:
@@ -89,7 +89,6 @@ def add_transaction(tx: TransactionCreate):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
-
 @app.get("/dashboard/{email}")
 def get_dashboard(email: str):
     try:
@@ -271,3 +270,49 @@ def add_money_to_goal(update: GoalUpdate):
     conn.commit()
     conn.close()
     return {"message": "Money added to goal"}
+
+class CategoryCreate(BaseModel):
+    user_email: str
+    name: str
+    color: str
+    type: str
+
+@app.post("/categories")
+def add_category(cat: CategoryCreate):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO categories (user_email, name, color, is_default) VALUES (%s, %s, %s, FALSE)",
+            (cat.user_email, cat.name, cat.color)
+        )
+        conn.commit()
+        return {"message": "Category created"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/categories/{id}")
+def delete_category(id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    # Only delete if not default (optional logic)
+    cursor.execute("DELETE FROM categories WHERE id = %s AND is_default = FALSE", (id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Category deleted"}
+
+@app.get("/recurring/{email}")
+def get_recurring(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    # Get distinct recurring transactions
+    cursor.execute("""
+        SELECT * FROM transactions 
+        WHERE user_email = %s AND is_recurring = TRUE
+        GROUP BY note, amount -- Grouping to show unique subscriptions
+    """, (email,))
+    data = cursor.fetchall()
+    conn.close()
+    return data
