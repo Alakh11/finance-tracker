@@ -174,3 +174,100 @@ def update_budget(data: BudgetUpdate):
     except Exception as e:
         logger.error(f"Update Budget Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+class GoalCreate(BaseModel):
+    user_email: str
+    name: str
+    target_amount: float
+    deadline: Optional[str] = None
+
+class GoalUpdate(BaseModel):
+    goal_id: int
+    amount_added: float
+
+
+@app.get("/analytics/{email}")
+def get_analytics(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+
+        cursor.execute("""
+            SELECT 
+                c.name, 
+                SUM(t.amount) as value 
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            WHERE t.user_email = %s AND t.type = 'expense'
+            GROUP BY c.name
+        """, (email,))
+        pie_data = cursor.fetchall()
+        
+
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(date, '%b') as name, 
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+            FROM transactions 
+            WHERE user_email = %s 
+            GROUP BY YEAR(date), MONTH(date), DATE_FORMAT(date, '%b')
+            ORDER BY YEAR(date), MONTH(date)
+            LIMIT 6
+        """, (email,))
+        bar_data = cursor.fetchall()
+        
+        conn.close()
+        return {"pie": pie_data, "bar": bar_data}
+    except Exception as e:
+        logger.error(f"Analytics Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/transactions/all/{email}")
+def get_all_transactions(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT t.*, c.name as category_name 
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_email = %s 
+        ORDER BY t.date DESC
+    """, (email,))
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+@app.get("/goals/{email}")
+def get_goals(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM goals WHERE user_email = %s", (email,))
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+@app.post("/goals")
+def add_goal(goal: GoalCreate):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO goals (user_email, name, target_amount, deadline) VALUES (%s, %s, %s, %s)",
+        (goal.user_email, goal.name, goal.target_amount, goal.deadline)
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Goal added"}
+
+@app.put("/goals/add-money")
+def add_money_to_goal(update: GoalUpdate):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE goals SET current_amount = current_amount + %s WHERE id = %s",
+        (update.amount_added, update.goal_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Money added to goal"}
