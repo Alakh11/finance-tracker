@@ -29,6 +29,7 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
     { id: 'transactions', label: 'Transactions', icon: Wallet },
     { id: 'recurring', label: 'Recurring Bills', icon: Repeat },
     { id: 'budget', label: 'Budgets', icon: Target },
+    { id: 'goals', label: 'Goals', icon: Target },
     { id: 'analytics', label: 'Analytics', icon: PieChart },
     { id: 'categories', label: 'Settings', icon: Settings },
   ];
