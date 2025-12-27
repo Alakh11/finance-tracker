@@ -12,6 +12,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import type { User } from '../types';
+import icon from '../assets/iconNew.png';
+
 
 interface LayoutProps {
   children: ReactNode;
@@ -64,9 +66,12 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
             {/* Header */}
             <div className="p-8 pb-4">
                 <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-blue-600 to-violet-600 p-2.5 rounded-xl shadow-lg shadow-blue-200 text-white">
-                        <Wallet className="w-6 h-6" />
-                    </div>
+                    <div className="mb-8 flex justify-center">
+                <div className="p-5 bg-gradient-to-br bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-[radial-gradient(circle_at_top,_#fde68a,_#b45309)] rounded-2xl shadow-lg shadow-blue-500/30 transform hover:-translate-y-1 transition-all duration-300">
+                    <img src={icon} className="w-8 h-8" />
+
+                </div>
+              </div>
                     <div>
                       <h1 className="text-xl font-bold text-slate-800 tracking-tight">FinTrack</h1>
                       <p className="text-xs text-blue-500 font-bold tracking-wide uppercase">Premium</p>

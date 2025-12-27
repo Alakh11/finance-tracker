@@ -11,6 +11,7 @@ import CategoryManager from './components/CategoryManager';
 import Goals from './components/Goals';
 import { ShieldCheck } from 'lucide-react';
 import type { User } from './types';
+import iconNew from './assets/iconNew.png';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -55,7 +56,7 @@ function App() {
               
               <div className="mb-8 flex justify-center">
                 <div className="p-5 bg-gradient-to-br bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-[radial-gradient(circle_at_top,_#fde68a,_#b45309)] rounded-2xl shadow-lg shadow-blue-500/30 transform -rotate-6">
-                    <img src="./src/assets/iconNew.png" className="w-12 h-12" />
+                    <img src={iconNew} className="w-12 h-12" />
 
                 </div>
               </div>
