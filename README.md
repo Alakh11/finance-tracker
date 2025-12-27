@@ -1,6 +1,6 @@
 # 💰 FinTrack - Professional Personal Finance Manager
 
-![FinTrack Banner](https://via.placeholder.com/1200x400.png?text=FinTrack+Dashboard+Preview)
+![FinTrack Banner](https://alakh-finance.vercel.app/src/assets/iconNew.png)
 
 **FinTrack** is a modern, full-stack personal finance application designed to help users track income, expenses, and budgets with a beautiful, "Creamy Cake" soft UI. Built with a robust **Python FastAPI** backend and a reactive **React + TypeScript** frontend.
 
