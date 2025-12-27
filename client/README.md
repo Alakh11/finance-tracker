@@ -1,5 +1,4 @@
 ###  Frontend Documentation (`client/README.md`)
-*Place this file inside the `client` folder.*
 
 ```markdown
 # ⚛️ FinTrack Frontend

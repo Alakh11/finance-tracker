@@ -13,3 +13,4 @@ python -m venv venv
 source venv/bin/activate   # Mac/Linux
 venv\Scripts\activate    # Windows
 uvicorn main:app --reload --port 5001
+```
