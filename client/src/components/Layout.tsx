@@ -40,16 +40,12 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
     return (
       <button
         onClick={onClick}
-        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 font-medium group relative overflow-hidden ${
+        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 font-medium group relative overflow-hidden ${
           isActive 
-            ? 'text-white shadow-lg shadow-blue-500/30' 
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30' 
             : 'text-stone-500 hover:bg-white hover:text-blue-600'
         }`}
       >
-        {isActive && (
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl -z-10" />
-        )}
-        
         <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-stone-400 group-hover:text-blue-500'}`} />
         <span className="flex-1 text-left">{item.label}</span>
         {isActive && <ChevronRight className="w-4 h-4 text-white/70" />}
@@ -60,7 +56,8 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
   return (
     <div className="min-h-screen flex bg-[#F3F4F6]">
       
-      <aside className="hidden md:flex flex-col w-72 fixed h-full z-20 pl-4 py-4">
+      {/* --- Sidebar (Desktop) --- */}
+      <aside className="hidden md:flex flex-col w-72 fixed h-full z-30 pl-4 py-4">
         <div className="h-full bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl shadow-indigo-100/50 flex flex-col">
             
             {/* Header */}
@@ -85,7 +82,7 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
               ))}
             </nav>
 
-            {/* Profile */}
+            {/* Desktop Profile */}
             <div className="p-4 mt-auto">
                <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border border-white shadow-sm">
                    <div className="flex items-center gap-3 mb-4">
@@ -107,7 +104,7 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
       </aside>
 
       {/* --- Mobile Header --- */}
-      <div className="md:hidden fixed w-full bg-white/90 backdrop-blur-lg z-30 px-5 py-3 flex justify-between items-center border-b border-slate-200 shadow-sm">
+      <div className="md:hidden fixed top-0 left-0 w-full bg-white/90 backdrop-blur-lg z-50 px-5 py-3 flex justify-between items-center border-b border-slate-200 shadow-sm">
          <div className="flex items-center gap-2">
              <div className="p-2 bg-gradient-to-br bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-[radial-gradient(circle_at_top,_#fde68a,_#b45309)] rounded-2xl shadow-lg shadow-blue-500/30 transform hover:-translate-y-1 transition-all duration-300">
                     <img src={icon} className="w-8 h-8" />
@@ -123,18 +120,28 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
          </button>
       </div>
 
+      {/* --- Mobile Menu Overlay --- */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-[60] md:hidden">
            {/* Backdrop */}
            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
            
            {/* Menu Drawer */}
-           <div className="absolute right-0 top-0 h-full w-3/4 max-w-xs bg-white shadow-2xl p-6 flex flex-col animate-in slide-in-from-right duration-300">
-              <div className="flex justify-between items-center mb-8">
+           <div className="absolute right-0 top-0 h-full w-[85%] max-w-xs bg-white shadow-2xl p-6 flex flex-col animate-in slide-in-from-right duration-300">
+              <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-slate-800">Menu</h2>
                   <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-100 rounded-full">
                     <X className="w-5 h-5 text-slate-600" />
                   </button>
+              </div>
+
+              {/* Mobile User Profile (Added) */}
+              <div className="flex items-center gap-3 mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <img src={user.picture} alt="Profile" className="w-12 h-12 rounded-full ring-2 ring-white" />
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                  </div>
               </div>
               
               <nav className="space-y-2 flex-1 overflow-y-auto">
@@ -152,7 +159,7 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
 
               <button 
                 onClick={handleLogout} 
-                className="mt-6 flex items-center justify-center gap-2 w-full py-3 text-rose-600 font-bold bg-rose-50 rounded-2xl"
+                className="mt-6 flex items-center justify-center gap-2 w-full py-3.5 text-rose-600 font-bold bg-rose-50 rounded-2xl active:bg-rose-100"
               >
                 <LogOut className="w-5 h-5" /> Sign Out
               </button>
@@ -161,8 +168,8 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
       )}
 
       {/* --- Main Content Area --- */}
-      <main className="flex-1 md:ml-80 p-5 md:p-8 mt-16 md:mt-0 transition-all duration-300">
-        <div className="max-w-6xl mx-auto space-y-8 pb-20">
+      <main className="flex-1 md:ml-80 p-5 md:p-8 mt-20 md:mt-0 transition-all duration-300 w-full overflow-x-hidden">
+        <div className="max-w-6xl mx-auto space-y-8 pb-24">
           {children}
         </div>
       </main>
