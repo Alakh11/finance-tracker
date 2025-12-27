@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   preview: {
-    allowedHosts: ['all']
+    allowedHosts: ["alakh-finance.onrender.com", "alakh-finance.vercel.app", "finance-tracker-q60v.onrender.com"],
   },
   build: {
     chunkSizeWarningLimit: 1000 // in KB (1000 KB = 1 MB)
