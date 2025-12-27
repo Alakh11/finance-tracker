@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Wallet, TrendingUp, TrendingDown, Plus,
-  CreditCard,
+  CreditCard, Calendar, CheckCircle2
 } from 'lucide-react';
 import type { User, Transaction, DashboardStats } from '../types';
 
@@ -10,24 +10,39 @@ interface DashboardProps {
   user: User;
 }
 
-const StatCard = ({ title, amount, icon: Icon, }: any) => {
-  //   const styles = {
-  //     balance: { bg: 'bg-stone-800', iconBg: 'bg-stone-700', text: 'text-white', sub: 'text-stone-400' },
-  //     income: { bg: 'bg-white', iconBg: 'bg-[#F0FDF4]', text: 'text-stone-800', sub: 'text-stone-400', iconColor: 'text-emerald-600' },
-  //     expense: { bg: 'bg-white', iconBg: 'bg-[#FEF2F2]', text: 'text-stone-800', sub: 'text-stone-400', iconColor: 'text-rose-600' },
-  //   }[type as 'balance' | 'income' | 'expense'];
+const StatCard = ({ title, amount, icon: Icon, type }: any) => {
+  const styles = {
+    balance: { 
+        bg: 'bg-gradient-to-br from-blue-600 to-indigo-700', 
+        text: 'text-white', 
+        sub: 'text-blue-100', 
+        icon: 'bg-white/20 text-white' 
+    },
+    income: { 
+        bg: 'bg-white', 
+        text: 'text-slate-800', 
+        sub: 'text-slate-400', 
+        icon: 'bg-emerald-100 text-emerald-600' 
+    },
+    expense: { 
+        bg: 'bg-white', 
+        text: 'text-slate-800', 
+        sub: 'text-slate-400', 
+        icon: 'bg-rose-100 text-rose-600' 
+    },
+  }[type as 'balance' | 'income' | 'expense'];
 
   return (
-    <div className={` p-6 rounded-[1.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-100/50 hover:-translate-y-1 transition-transform duration-300`}>
-      <div className="flex justify-between items-start">
+    <div className={`${styles.bg} p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300`}>
+      <div className="relative z-10 flex justify-between items-start">
         <div>
-          <p className={` text-sm font-medium mb-2`}>{title}</p>
-          <h3 className={` text-3xl font-bold tracking-tight`}>
+          <p className={`${styles.sub} text-sm font-bold mb-2 uppercase tracking-wide`}>{title}</p>
+          <h3 className={`${styles.text} text-3xl font-extrabold tracking-tight`}>
             ₹{amount.toLocaleString('en-IN')}
           </h3>
         </div>
-        <div className={`p-3.5 rounded-2xl`}>
-          <Icon className={`w-6 h-6  || 'text-white'}`} />
+        <div className={`p-4 rounded-2xl ${styles.icon}`}>
+          <Icon className="w-6 h-6" />
         </div>
       </div>
     </div>
@@ -90,103 +105,124 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Stats Grid */}
+    <div className="space-y-8 animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Total Balance" amount={stats.balance} icon={Wallet} color="bg-blue-600" />
-        <StatCard title="Monthly Income" amount={stats.income} icon={TrendingUp} color="bg-emerald-500" />
-        <StatCard title="Monthly Expense" amount={stats.expense} icon={TrendingDown} color="bg-rose-500" />
+        <StatCard title="Total Balance" amount={stats.balance} icon={Wallet} type="balance" />
+        <StatCard title="Total Income" amount={stats.income} icon={TrendingUp} type="income" />
+        <StatCard title="Total Expenses" amount={stats.expense} icon={TrendingDown} type="expense" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Add Transaction Form */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
-            <Plus className="w-5 h-5 text-blue-600" /> Quick Add
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
+        
+        <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-fit">
+          <div className="flex items-center gap-2 mb-6">
+             <div className="bg-blue-100 p-2.5 rounded-xl text-blue-600"><Plus className="w-5 h-5" /></div>
+             <h2 className="text-lg font-bold text-slate-800">Quick Add</h2>
+          </div>
+
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
               <button
                 onClick={() => setNewTx({ ...newTx, type: 'income' })}
-                className={`p-2 rounded-lg text-sm font-medium transition ${newTx.type === 'income' ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`py-2.5 rounded-lg text-sm font-bold transition-all ${newTx.type === 'income' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Income
               </button>
               <button
                 onClick={() => setNewTx({ ...newTx, type: 'expense' })}
-                className={`p-2 rounded-lg text-sm font-medium transition ${newTx.type === 'expense' ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`py-2.5 rounded-lg text-sm font-bold transition-all ${newTx.type === 'expense' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Expense
               </button>
             </div>
-            <input
-              type="number"
-              placeholder="Amount (₹)"
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-              value={newTx.amount}
-              onChange={e => setNewTx({ ...newTx, amount: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Note (e.g. Lunch)"
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-              value={newTx.note}
-              onChange={e => setNewTx({ ...newTx, note: e.target.value })}
-            />
-            <input
-              type="date"
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none"
-              value={newTx.date}
-              onChange={e => setNewTx({ ...newTx, date: e.target.value })}
-            />
 
-            <div className="flex items-center gap-3 py-2">
-                <input 
-                    type="checkbox" 
-                    id="recurring"
-                    className="w-5 h-5 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500"
-                    checked={newTx.is_recurring}
-                    onChange={e => setNewTx({...newTx, is_recurring: e.target.checked})}
-                />
-                <label htmlFor="recurring" className="text-sm font-semibold text-slate-600 select-none cursor-pointer">
-                    This is a recurring payment (Rent, Netflix)
-                </label>
+            <div>
+               <label className="text-xs font-bold text-slate-400 uppercase ml-1">Amount</label>
+               <input
+                 type="number"
+                 placeholder="0.00"
+                 className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-bold text-lg text-slate-700"
+                 value={newTx.amount}
+                 onChange={e => setNewTx({ ...newTx, amount: e.target.value })}
+               />
             </div>
+            
+            <div>
+               <label className="text-xs font-bold text-slate-400 uppercase ml-1">Description</label>
+               <input
+                 type="text"
+                 placeholder="e.g. Starbucks, Salary"
+                 className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium"
+                 value={newTx.note}
+                 onChange={e => setNewTx({ ...newTx, note: e.target.value })}
+               />
+            </div>
+
+            <div className="relative">
+                <label className="text-xs font-bold text-slate-400 uppercase ml-1">Date</label>
+                <input
+                    type="date"
+                    className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-slate-600"
+                    value={newTx.date}
+                    onChange={e => setNewTx({ ...newTx, date: e.target.value })}
+                />
+            </div>
+
+            <div 
+                className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${newTx.is_recurring ? 'bg-blue-50 border-blue-200' : 'bg-transparent border-transparent hover:bg-slate-50'}`}
+                onClick={() => setNewTx({...newTx, is_recurring: !newTx.is_recurring})}
+            >
+                <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${newTx.is_recurring ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}`}>
+                    {newTx.is_recurring && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                </div>
+                <span className={`text-sm font-semibold select-none ${newTx.is_recurring ? 'text-blue-700' : 'text-slate-500'}`}>
+                    Recurring (Monthly)
+                </span>
+            </div>
+
             <button
               onClick={addTransaction}
-              className="w-full bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 active:scale-95 transition"
+              className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200"
             >
               Save Transaction
             </button>
           </div>
         </div>
 
-        {/* Right Column: Recent Transactions List */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-lg font-bold mb-4 text-gray-800">Recent Transactions</h2>
-          <div className="space-y-2">
-            {transactions.map((tx, i) => (
-              <div key={i} className="flex justify-between items-center p-4 hover:bg-gray-50 rounded-xl transition border border-transparent hover:border-gray-100">
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-full ${tx.type === 'income' ? 'bg-emerald-100' : 'bg-rose-100'}`}>
-                    <CreditCard className={`w-5 h-5 ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{tx.note || tx.category}</p>
-                    <p className="text-xs text-gray-500">{tx.date}</p>
-                  </div>
+        <div className="lg:col-span-2">
+            <div className="flex justify-between items-end mb-4 px-2">
+                <h2 className="text-xl font-bold text-slate-800">Recent Transactions</h2>
+            </div>
+
+            <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden">
+                <div className="divide-y divide-slate-50">
+                    {transactions.map((tx, i) => (
+                    <div key={i} className="flex justify-between items-center p-5 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-2xl ${tx.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
+                                <CreditCard className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-slate-800 text-lg">{tx.note || tx.category}</p>
+                                <div className="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wide">
+                                    <Calendar className="w-3 h-3" />
+                                    {tx.date}
+                                </div>
+                            </div>
+                        </div>
+                        <span className={`font-bold text-lg ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                        {tx.type === 'income' ? '+' : '-'} ₹{Number(tx.amount).toLocaleString('en-IN')}
+                        </span>
+                    </div>
+                    ))}
+                    {transactions.length === 0 && (
+                        <div className="text-center py-12 text-slate-400 flex flex-col items-center">
+                            <div className="bg-slate-50 p-4 rounded-full mb-3"><Wallet className="w-6 h-6" /></div>
+                            <p className="font-medium">No transactions yet.</p>
+                        </div>
+                    )}
                 </div>
-                <span className={`font-bold text-lg ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {tx.type === 'income' ? '+' : '-'} ₹{tx.amount}
-                </span>
-              </div>
-            ))}
-            {transactions.length === 0 && (
-              <div className="text-center py-10">
-                <p className="text-gray-400">No transactions yet.</p>
-              </div>
-            )}
-          </div>
+            </div>
         </div>
 
       </div>
