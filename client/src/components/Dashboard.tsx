@@ -10,27 +10,11 @@ interface DashboardProps {
   user: User;
 }
 
-// --- Colorful Stat Card with Loading State ---
 const StatCard = ({ title, amount, icon: Icon, type, isLoading }: any) => {
   const styles = {
-    balance: { 
-        bg: 'bg-gradient-to-br from-blue-600 to-indigo-700', 
-        text: 'text-white', 
-        sub: 'text-blue-100', 
-        icon: 'bg-white/20 text-white' 
-    },
-    income: { 
-        bg: 'bg-white', 
-        text: 'text-slate-800', 
-        sub: 'text-slate-400', 
-        icon: 'bg-emerald-100 text-emerald-600' 
-    },
-    expense: { 
-        bg: 'bg-white', 
-        text: 'text-slate-800', 
-        sub: 'text-slate-400', 
-        icon: 'bg-rose-100 text-rose-600' 
-    },
+    balance: { bg: 'bg-gradient-to-br from-blue-600 to-indigo-700', text: 'text-white', sub: 'text-blue-100', icon: 'bg-white/20 text-white' },
+    income: { bg: 'bg-white', text: 'text-slate-800', sub: 'text-slate-400', icon: 'bg-emerald-100 text-emerald-600' },
+    expense: { bg: 'bg-white', text: 'text-slate-800', sub: 'text-slate-400', icon: 'bg-rose-100 text-rose-600' },
   }[type as 'balance' | 'income' | 'expense'];
 
   if (isLoading) {
@@ -50,13 +34,9 @@ const StatCard = ({ title, amount, icon: Icon, type, isLoading }: any) => {
       <div className="relative z-10 flex justify-between items-start">
         <div>
           <p className={`${styles.sub} text-sm font-bold mb-2 uppercase tracking-wide`}>{title}</p>
-          <h3 className={`${styles.text} text-3xl font-extrabold tracking-tight`}>
-            ₹{amount.toLocaleString('en-IN')}
-          </h3>
+          <h3 className={`${styles.text} text-3xl font-extrabold tracking-tight`}>₹{amount.toLocaleString('en-IN')}</h3>
         </div>
-        <div className={`p-4 rounded-2xl ${styles.icon}`}>
-          <Icon className="w-6 h-6" />
-        </div>
+        <div className={`p-4 rounded-2xl ${styles.icon}`}><Icon className="w-6 h-6" /></div>
       </div>
     </div>
   );
@@ -65,8 +45,9 @@ const StatCard = ({ title, amount, icon: Icon, type, isLoading }: any) => {
 export default function Dashboard({ user }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats>({ income: 0, expense: 0, balance: 0 });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<any[]>([]); 
+  const [selectedCategory, setSelectedCategory] = useState(''); 
   
-  // --- Loading & Error States ---
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,6 +64,7 @@ export default function Dashboard({ user }: DashboardProps) {
 
   useEffect(() => {
     fetchDashboard();
+    axios.get(`${API_URL}/categories/${user.email}`).then(res => setCategories(res.data));
   }, [user.email]);
 
   const fetchDashboard = async () => {
@@ -107,14 +89,17 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   const addTransaction = async () => {
-    if (!newTx.amount) return;
+    if (!newTx.amount || !selectedCategory) {
+        alert("Please select a category and amount");
+        return;
+    }
     setIsSubmitting(true);
     try {
       await axios.post(`${API_URL}/transactions`, {
         user_email: user.email,
         amount: parseFloat(newTx.amount),
         type: newTx.type,
-        category: "General",
+        category: selectedCategory,
         payment_mode: "UPI",
         date: newTx.date,
         note: newTx.note,
@@ -128,6 +113,8 @@ export default function Dashboard({ user }: DashboardProps) {
       setIsSubmitting(false);
     }
   };
+
+  const filteredCats = categories.filter(c => c.type === newTx.type);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -148,7 +135,6 @@ export default function Dashboard({ user }: DashboardProps) {
         </div>
       )}
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard title="Total Balance" amount={stats.balance} icon={Wallet} type="balance" isLoading={isLoading} />
         <StatCard title="Total Income" amount={stats.income} icon={TrendingUp} type="income" isLoading={isLoading} />
@@ -156,8 +142,7 @@ export default function Dashboard({ user }: DashboardProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left Column: Quick Add Form */}
+        {/* Quick Add Form */}
         <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-fit">
           <div className="flex items-center gap-2 mb-6">
              <div className="bg-blue-100 p-2.5 rounded-xl text-blue-600"><Plus className="w-5 h-5" /></div>
@@ -165,7 +150,6 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
 
           <div className="space-y-5">
-            {/* Type Selector */}
             <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
               <button
                 onClick={() => setNewTx({ ...newTx, type: 'income' })}
@@ -181,57 +165,43 @@ export default function Dashboard({ user }: DashboardProps) {
               </button>
             </div>
 
-            {/* Inputs */}
             <div>
                <label className="text-xs font-bold text-slate-400 uppercase ml-1">Amount</label>
-               <input
-                 type="number"
-                 placeholder="0.00"
-                 className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-bold text-lg text-slate-700"
-                 value={newTx.amount}
-                 onChange={e => setNewTx({ ...newTx, amount: e.target.value })}
-               />
+               <input type="number" placeholder="0.00" className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-lg" value={newTx.amount} onChange={e => setNewTx({ ...newTx, amount: e.target.value })} />
             </div>
             
+            {/* Category Dropdown */}
             <div>
-               <label className="text-xs font-bold text-slate-400 uppercase ml-1">Description</label>
-               <input
-                 type="text"
-                 placeholder="e.g. Starbucks, Salary"
-                 className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium"
-                 value={newTx.note}
-                 onChange={e => setNewTx({ ...newTx, note: e.target.value })}
-               />
+               <label className="text-xs font-bold text-slate-400 uppercase ml-1">Category</label>
+               <select 
+                  value={selectedCategory} 
+                  onChange={e => setSelectedCategory(e.target.value)}
+                  className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700"
+               >
+                  <option value="" disabled>Select {newTx.type} Category</option>
+                  {filteredCats.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+               </select>
             </div>
 
-            <div className="relative">
+            {/* Description Input */}
+            <div>
+               <label className="text-xs font-bold text-slate-400 uppercase ml-1">Description (Optional)</label>
+               <input type="text" placeholder="e.g. Dinner with friends" className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium" value={newTx.note} onChange={e => setNewTx({ ...newTx, note: e.target.value })} />
+            </div>
+
+            <div>
                 <label className="text-xs font-bold text-slate-400 uppercase ml-1">Date</label>
-                <input
-                    type="date"
-                    className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-slate-600"
-                    value={newTx.date}
-                    onChange={e => setNewTx({ ...newTx, date: e.target.value })}
-                />
+                <input type="date" className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-600" value={newTx.date} onChange={e => setNewTx({ ...newTx, date: e.target.value })} />
             </div>
 
-            {/* Recurring Checkbox */}
-            <div 
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${newTx.is_recurring ? 'bg-blue-50 border-blue-200' : 'bg-transparent border-transparent hover:bg-slate-50'}`}
-                onClick={() => setNewTx({...newTx, is_recurring: !newTx.is_recurring})}
-            >
-                <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${newTx.is_recurring ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}`}>
-                    {newTx.is_recurring && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                </div>
-                <span className={`text-sm font-semibold select-none ${newTx.is_recurring ? 'text-blue-700' : 'text-slate-500'}`}>
-                    Recurring (Monthly)
-                </span>
+            <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${newTx.is_recurring ? 'bg-blue-50 border-blue-200' : 'bg-transparent border-transparent hover:bg-slate-50'}`} onClick={() => setNewTx({...newTx, is_recurring: !newTx.is_recurring})}>
+                <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${newTx.is_recurring ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}`}>{newTx.is_recurring && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}</div>
+                <span className={`text-sm font-semibold select-none ${newTx.is_recurring ? 'text-blue-700' : 'text-slate-500'}`}>Recurring (Monthly)</span>
             </div>
 
-            <button
-              onClick={addTransaction}
-              disabled={isSubmitting}
-              className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2"
-            >
+            <button onClick={addTransaction} disabled={isSubmitting} className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 disabled:opacity-70 flex items-center justify-center gap-2">
               {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Save Transaction'}
             </button>
           </div>
@@ -272,10 +242,10 @@ export default function Dashboard({ user }: DashboardProps) {
                                     <CreditCard className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-slate-800 text-lg">{tx.note || tx.category}</p>
+                                    <p className="font-bold text-slate-800 text-lg">{tx.category || 'General'}</p>
                                     <div className="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wide">
                                         <Calendar className="w-3 h-3" />
-                                        {tx.date}
+                                        {tx.date} • {tx.note}
                                     </div>
                                 </div>
                             </div>
@@ -292,6 +262,7 @@ export default function Dashboard({ user }: DashboardProps) {
                             </div>
                         )}
                     </div>
+                    // <span className={`font-bold text-lg ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>{tx.type === 'income' ? '+' : '-'} ₹{Number(tx.amount).toLocaleString('en-IN')}</span>
                 )}
             </div>
         </div>

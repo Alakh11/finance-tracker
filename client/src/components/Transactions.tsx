@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search} from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 import type { User, Transaction } from '../types';
 
 export default function Transactions({ user }: { user: User }) {
@@ -18,6 +18,12 @@ export default function Transactions({ user }: { user: User }) {
      const matchesType = filter === 'all' || t.type === filter;
      return matchesSearch && matchesType;
   });
+//   const deleteTransaction = async (id: number) => {
+//     if(confirm("Delete this transaction?")) {
+//         await axios.delete(`${API_URL}/transactions/${id}`);
+//         setTransactions(transactions.filter(t => t.id !== id));
+//     }
+// }
 
   return (
     <div className="space-y-6">
@@ -64,9 +70,18 @@ export default function Transactions({ user }: { user: User }) {
                          <span className="px-3 py-1 rounded-full bg-stone-100 text-xs font-bold text-stone-500">{t.category}</span>
                       </td>
                       <td className="p-6 text-stone-500 text-sm">{t.date}</td>
-                      <td className={`p-6 text-right font-bold ${t.type === 'income' ? 'text-emerald-600' : 'text-stone-800'}`}>
-                         {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString()}
-                      </td>
+                      <td className="p-6 text-right font-bold flex justify-end items-center gap-4">
+                        <span className={t.type === 'income' ? 'text-emerald-600' : 'text-stone-800'}>
+                            {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString()}
+                        </span>
+                        <button onClick={async () => {
+                            if(confirm("Delete transaction?")) {
+                                await axios.delete(`https://finance-tracker-q60v.onrender.com/transactions/${t.id}`);
+                                // Refresh logic (e.g. reload page or update state)
+                                window.location.reload(); 
+                            }
+                        }} className="text-stone-300 hover:text-rose-500"><Trash2 size={18} /></button>
+                    </td>
                    </tr>
                 ))}
              </tbody>
