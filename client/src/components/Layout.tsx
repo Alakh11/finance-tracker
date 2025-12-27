@@ -110,7 +110,7 @@ const Layout = ({ children, user, activeTab, setActiveTab, handleLogout }: Layou
       <div className="md:hidden fixed w-full bg-white/90 backdrop-blur-lg z-30 px-5 py-3 flex justify-between items-center border-b border-slate-200 shadow-sm">
          <div className="flex items-center gap-2">
              <div className="p-2 bg-gradient-to-br bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-[radial-gradient(circle_at_top,_#fde68a,_#b45309)] rounded-2xl shadow-lg shadow-blue-500/30 transform hover:-translate-y-1 transition-all duration-300">
-                    <img src={icon} className="w-4 h-4" />
+                    <img src={icon} className="w-8 h-8" />
 
                 </div>
             <span className="font-bold text-slate-800 text-lg">FinTrack</span>
