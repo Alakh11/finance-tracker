@@ -5,7 +5,7 @@ import {
   Wallet, TrendingUp, TrendingDown, Plus,
   CreditCard, Calendar, CheckCircle2, RefreshCw
 } from 'lucide-react';
-import type { Transaction } from '../types';
+import type { Transaction } from '../../types';
 
 // --- Colorful Stat Card ---
 const StatCard = ({ title, amount, icon: Icon, type }: any) => {

@@ -7,13 +7,13 @@ import {
 } from '@tanstack/react-router';
 import axios from 'axios';
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import Transactions from './components/Transactions';
-import Recurring from './components/Recurring';
-import BudgetPlanner from './components/BudgetPlanner';
-import Goals from './components/Goals';
-import Analytics from './components/Analytics';
-import CategoryManager from './components/CategoryManager';
+import Dashboard from './components/Dashboard/Dashboard';
+import Transactions from './components/Transactions/Transactions';
+import Recurring from './components/Recurring/Recurring';
+import BudgetPlanner from './components/Budget/BudgetPlanner';
+import Goals from './components/Goals/Goals';
+import Analytics from './components/Analytics/Analytics';
+import CategoryManager from './components/CategoryManager/CategoryManager';
 import type { User } from './types';
 
 // Context for the router (User is required)
@@ -58,7 +58,7 @@ const transactionsRoute = createRoute({
   component: Transactions,
 });
 
-// --- 4. Budget Route (Budgets + Goals) ---
+// --- 4. Budget Route ---
 const budgetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'budget',
@@ -132,10 +132,9 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
-  context: { user: undefined! }, // Initial context placeholder
+  context: { user: undefined! },
 });
 
-// Register for type safety
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router;
