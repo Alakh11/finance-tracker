@@ -7,9 +7,9 @@
   "predeploy": "npm run build && cp dist/index.html dist/404.html",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b &&vite build",
+    "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview  --host 0.0.0.0 --port $PORT",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
