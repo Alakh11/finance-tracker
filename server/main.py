@@ -549,7 +549,8 @@ def get_monthly_income(email: str):
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        # Group income by Month and Year
+        
+        # FIXED QUERY: Grouping by the formatted strings directly
         cursor.execute("""
             SELECT 
                 DATE_FORMAT(date, '%Y-%m') as month_year,
@@ -557,10 +558,11 @@ def get_monthly_income(email: str):
                 SUM(amount) as total
             FROM transactions 
             WHERE user_email = %s AND type = 'income'
-            GROUP BY YEAR(date), MONTH(date)
-            ORDER BY YEAR(date) DESC, MONTH(date) DESC
-            LIMIT 12 -- Last 12 months
+            GROUP BY DATE_FORMAT(date, '%Y-%m'), DATE_FORMAT(date, '%M %Y')
+            ORDER BY month_year DESC
+            LIMIT 12
         """, (email,))
+        
         data = cursor.fetchall()
         conn.close()
         return data
