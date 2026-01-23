@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useRouter } from '@tanstack/react-router';
 import { 
-  LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, Repeat, Settings, ChevronRight 
+  LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, Repeat, Settings, ChevronRight, 
+  Trophy
 } from 'lucide-react';
 import icon from '../assets/iconNew.png';
 
@@ -20,7 +21,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
     { to: '/transactions', label: 'Transactions', icon: Wallet },
     { to: '/recurring', label: 'Recurring Bills', icon: Repeat },
-    { to: '/budget', label: 'Budgets & Goals', icon: Target },
+    { to: '/budget', label: 'Budgets', icon: Target },
+    { to: '/goals', label: 'Savings Goals', icon: Trophy },
     { to: '/analytics', label: 'Analytics', icon: PieChart },
     { to: '/categories', label: 'Settings', icon: Settings },
   ];

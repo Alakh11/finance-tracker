@@ -63,18 +63,21 @@ const budgetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'budget',
   loader: async ({ context }) => {
-    const [budgets, goals] = await Promise.all([
-        axios.get(`${API_URL}/budgets/${context.user.email}`),
-        axios.get(`${API_URL}/goals/${context.user.email}`)
-    ]);
-    return { budgets: budgets.data, goals: goals.data };
+    const res = await axios.get(`${API_URL}/budgets/${context.user.email}`);
+    return { budgets: res.data };
   },
-  component: () => (
-    <div className="space-y-12">
-        <BudgetPlanner />
-        <Goals />
-    </div>
-  ),
+  component: BudgetPlanner,
+});
+
+// --- 5. Goals Route ---
+const goalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'goals',
+  loader: async ({ context }) => {
+    const res = await axios.get(`${API_URL}/goals/${context.user.email}`);
+    return { goals: res.data };
+  },
+  component: Goals,
 });
 
 // --- 5. Recurring Route ---
@@ -125,6 +128,7 @@ const routeTree = rootRoute.addChildren([
   dashboardRoute,
   transactionsRoute,
   budgetRoute,
+  goalsRoute,
   recurringRoute,
   analyticsRoute,
   categoriesRoute,
