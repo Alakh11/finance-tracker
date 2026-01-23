@@ -19,6 +19,7 @@ import type { User } from './types';
 // Context for the router (User is required)
 interface RouterContext {
   user: User;
+  handleLogout: () => void;
 }
 
 const API_URL = "https://finance-tracker-q60v.onrender.com";
@@ -136,7 +137,10 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
-  context: { user: undefined! },
+  context: { 
+    user: undefined!, 
+    handleLogout: undefined!
+  },
 });
 
 declare module '@tanstack/react-router' {
