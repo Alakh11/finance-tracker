@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useLoaderData, useRouter } from '@tanstack/react-router';
 import { Repeat, Plus, Trash2, } from 'lucide-react';
-import type { Transaction } from '../types';
+import type { Transaction } from '../../types';
 
 export default function Recurring() {
   const router = useRouter();
