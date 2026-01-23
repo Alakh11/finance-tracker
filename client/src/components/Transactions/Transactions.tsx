@@ -2,7 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Search, Trash2 } from 'lucide-react';
 import { useLoaderData, useRouter } from '@tanstack/react-router';
-import type { Transaction } from '../types';
+import type { Transaction } from '../../types';
 
 export default function Transactions() {
   const router = useRouter();
