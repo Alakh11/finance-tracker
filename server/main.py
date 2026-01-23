@@ -25,7 +25,8 @@ ALGORITHM = "HS256"
 origins = [
     "http://localhost:5173",
     "https://alakh-finance.vercel.app",
-    "https://finance-tracker-gamma-ten-67.vercel.app"
+    "https://finance-tracker-gamma-ten-67.vercel.app",
+    "https://alakh11.github.io"
 ]
 
 app.add_middleware(
