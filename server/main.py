@@ -1,18 +1,25 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 import mysql.connector
 import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from passlib.context import CryptContext
+from jose import jwt, JWTError
+from datetime import datetime, timedelta
+import random
 import logging
 
-# Setup Logging
+# Setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 load_dotenv()
+
 app = FastAPI()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = "YOUR_SUPER_SECRET_KEY" # Change this!
+ALGORITHM = "HS256"
 
 # CORS: Allow both localhost and your Vercel domains
 origins = [
@@ -41,9 +48,28 @@ def get_db():
             ssl_verify_identity=False
         )
     except Exception as e:
-        logger.error(f"Database Connection Failed: {e}")
+        logger.error(f"DB Error: {e}")
         raise HTTPException(status_code=500, detail="Database Connection Failed")
 
+# --- Auth Models ---
+class UserRegister(BaseModel):
+    name: str
+    contact: str # Email or Mobile
+    password: str
+    contact_type: str # 'email' or 'mobile'
+
+class UserLogin(BaseModel):
+    contact: str
+    password: str
+
+class VerifyOTP(BaseModel):
+    contact: str
+    otp: str
+    
+class GoogleAuth(BaseModel):
+    email: str
+    name: str
+    picture: Optional[str] = None
 # --- Data Models ---
 class TransactionCreate(BaseModel):
     user_email: str
@@ -81,6 +107,144 @@ class BudgetUpdate(BaseModel):
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "API is running"}
+
+# --- Helper Functions ---
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    to_encode.update({"exp": datetime.utcnow() + timedelta(days=7)})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def send_otp_mock(contact: str):
+    otp = str(random.randint(100000, 999999))
+    logger.info(f"🔑 MOCK OTP for {contact}: {otp}") # View this in Render Logs!
+    return otp
+
+# --- Auth Endpoints ---
+
+@app.post("/auth/register")
+def register(user: UserRegister):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Check existing
+        field = "email" if user.contact_type == 'email' else "mobile"
+        cursor.execute(f"SELECT * FROM users WHERE {field} = %s", (user.contact,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="User already exists")
+
+        # 1. Generate OTP
+        otp = send_otp_mock(user.contact)
+        expiry = datetime.utcnow() + timedelta(minutes=10)
+        
+        cursor.execute("INSERT INTO otps (identifier, otp_code, expires_at) VALUES (%s, %s, %s)", (user.contact, otp, expiry))
+        
+        # 2. Hash Password
+        hashed_pw = pwd_context.hash(user.password)
+        
+        # 3. Create unverified user
+        query = f"INSERT INTO users (name, {field}, password_hash, is_verified) VALUES (%s, %s, %s, FALSE)"
+        cursor.execute(query, (user.name, user.contact, hashed_pw))
+        
+        conn.commit()
+        return {"message": "OTP sent", "contact": user.contact}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.post("/auth/verify")
+def verify_otp(data: VerifyOTP):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Check OTP
+        cursor.execute("SELECT * FROM otps WHERE identifier = %s AND otp_code = %s AND expires_at > NOW()", (data.contact, data.otp))
+        otp_record = cursor.fetchone()
+        
+        if not otp_record:
+            raise HTTPException(status_code=400, detail="Invalid or Expired OTP")
+            
+        # Mark User Verified
+        is_email = "@" in data.contact
+        field = "email" if is_email else "mobile"
+        
+        cursor.execute(f"UPDATE users SET is_verified = TRUE WHERE {field} = %s", (data.contact,))
+        
+        # Get User Data for Token
+        cursor.execute(f"SELECT * FROM users WHERE {field} = %s", (data.contact,))
+        user_db = cursor.fetchone()
+        
+        # Generate Token
+        token = create_access_token({"sub": user_db['email'] or user_db['mobile'], "name": user_db['name']})
+        
+        # Cleanup OTP
+        cursor.execute("DELETE FROM otps WHERE identifier = %s", (data.contact,))
+        conn.commit()
+        
+        return {"token": token, "user": {"name": user_db['name'], "email": user_db['email'] or user_db['mobile'], "picture": ""}}
+        
+    finally:
+        conn.close()
+
+@app.post("/auth/login")
+def login(data: UserLogin):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        is_email = "@" in data.contact
+        field = "email" if is_email else "mobile"
+        
+        cursor.execute(f"SELECT * FROM users WHERE {field} = %s", (data.contact,))
+        user = cursor.fetchone()
+        
+        if not user or not pwd_context.verify(data.password, user['password_hash']):
+            raise HTTPException(status_code=400, detail="Invalid credentials")
+            
+        if not user['is_verified']:
+            raise HTTPException(status_code=400, detail="Account not verified. Please register again.")
+
+        token = create_access_token({"sub": user['email'] or user['mobile'], "name": user['name']})
+        return {"token": token, "user": {"name": user['name'], "email": user['email'] or user['mobile'], "picture": user['profile_pic'] or ""}}
+    finally:
+        conn.close()
+        
+@app.post("/auth/google")
+def google_login(data: GoogleAuth):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Check if user exists by email
+        cursor.execute("SELECT * FROM users WHERE email = %s", (data.email,))
+        user = cursor.fetchone()
+        
+        if not user:
+            # 2. If new user, create them (verified by default since it's Google)
+            cursor.execute(
+                "INSERT INTO users (name, email, profile_pic, is_verified) VALUES (%s, %s, %s, TRUE)",
+                (data.name, data.email, data.picture)
+            )
+            conn.commit()
+            
+            # Fetch the new ID
+            cursor.execute("SELECT * FROM users WHERE email = %s", (data.email,))
+            user = cursor.fetchone()
+            
+        # 3. Generate App Token (Same as standard login)
+        token = create_access_token({"sub": user['email'], "name": user['name']})
+        
+        return {
+            "token": token, 
+            "user": {
+                "name": user['name'], 
+                "email": user['email'], 
+                "picture": user['profile_pic']
+            }
+        }
+    except Exception as e:
+        logger.error(f"Google Login Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.post("/transactions")
 def add_transaction(tx: TransactionCreate):
