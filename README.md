@@ -3,7 +3,7 @@
 
 **FinTrack** is a modern, full-stack personal finance application designed to help users track income, expenses, and budgets with a beautiful, "Creamy Cake" soft UI. Built with a robust **Python FastAPI** backend and a reactive **React + TypeScript** frontend.
 
-🔗 **Live Demo:** [https://alakh-finance.vercel.app](https://alakh-finance.vercel.app)  
+🔗 **Live Demo:** [https://alakh11.github.io/finance-tracker/](https://alakh11.github.io/finance-tracker/)  
 🔌 **API Status:** [https://finance-tracker-q60v.onrender.com](https://finance-tracker-q60v.onrender.com)
 
 ---
@@ -46,5 +46,5 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/Alakh11/Finance-Tracker.git](https://github.com/Alakh11/Finance-Tracker.git)
+git clone [https://github.com/Alakh11/finance-tracker.git](https://github.com/Alakh11/finance-tracker.git)
 cd Finance-Tracker

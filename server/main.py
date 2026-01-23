@@ -24,8 +24,7 @@ ALGORITHM = "HS256"
 # CORS: Allow both localhost and your Vercel domains
 origins = [
     "http://localhost:5173",
-    "https://alakh-finance.vercel.app",
-    "https://finance-tracker-gamma-ten-67.vercel.app",
+    "https://alakh-finance.onrender.com",
     "https://alakh11.github.io"
 ]
 
