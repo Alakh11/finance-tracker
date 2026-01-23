@@ -37,7 +37,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
                 contact_type: method
             });
             setStep('otp'); // Move to OTP screen
-            alert(`OTP sent to ${formData.contact} (Check Backend Console for Mock OTP)`);
+            alert(`OTP sent to ${formData.contact}`);
         } 
         // B. VERIFY OTP -> COMPLETES SIGNUP
         else if (mode === 'signup' && step === 'otp') {
@@ -177,7 +177,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
                         onChange={e => setFormData({...formData, otp: e.target.value})}
                         autoFocus
                     />
-                    <p className="text-xs text-center text-slate-400 mt-2 font-medium">Check your server console for the mock code.</p>
+                    {/* <p className="text-xs text-center text-slate-400 mt-2 font-medium">Check your server console for the mock code.</p> */}
                 </div>
             )}
         </div>

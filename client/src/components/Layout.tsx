@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link, useRouter } from '@tanstack/react-router';
 import { 
-  LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, Repeat, Settings, ChevronRight, 
-  Trophy
+  LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, Repeat, Settings, ChevronRight, Trophy 
 } from 'lucide-react';
 import icon from '../assets/iconNew.png';
 
@@ -10,12 +9,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const router = useRouter();
-  const user = router.options.context.user;
-
-  const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    window.location.reload();
-  };
+  const { user, handleLogout } = router.options.context; 
 
   const menuItems = [
     { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -66,7 +60,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <div className="p-4 mt-auto">
                <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border border-white shadow-sm">
                    <div className="flex items-center gap-3 mb-4">
-                      <img src={user.picture} alt="Profile" className="w-10 h-10 rounded-full ring-2 ring-white shadow-sm" />
+                      <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} alt="Profile" className="w-10 h-10 rounded-full ring-2 ring-white shadow-sm" />
                       <div className="overflow-hidden">
                         <p className="text-sm font-bold text-slate-700 truncate">{user.name}</p>
                         <p className="text-xs text-slate-400 truncate">{user.email}</p>
@@ -80,7 +74,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* Mobile Header & Menu (Simplified for brevity, keep your existing mobile logic but replace onClick with Link) */}
+      {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 w-full bg-white/90 backdrop-blur-lg z-50 px-5 py-3 flex justify-between items-center border-b border-slate-200 shadow-sm">
          <div className="flex items-center gap-2">
              <div className="p-2 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 rounded-lg shadow-lg">
@@ -94,13 +88,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-           <div className="absolute right-0 top-0 h-full w-[85%] max-w-xs bg-white shadow-2xl p-6 flex flex-col">
+           <div className="absolute right-0 top-0 h-full w-[85%] max-w-xs bg-white shadow-2xl p-6 flex flex-col animate-in slide-in-from-right">
               <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-slate-800">Menu</h2>
                   <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
               </div>
               <div className="flex items-center gap-3 mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <img src={user.picture} className="w-12 h-12 rounded-full" />
+                  <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} className="w-12 h-12 rounded-full" />
                   <div><p className="text-sm font-bold text-slate-800">{user.name}</p><p className="text-xs text-slate-500 truncate">{user.email}</p></div>
               </div>
               <nav className="space-y-2 flex-1">
@@ -108,7 +102,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     <NavItem key={item.to} item={item} onClick={() => setIsMobileMenuOpen(false)} />
                 ))}
               </nav>
-              <button onClick={handleLogout} className="mt-6 w-full py-3.5 text-rose-600 font-bold bg-rose-50 rounded-2xl">Sign Out</button>
+              <button onClick={handleLogout} className="mt-6 w-full py-3.5 text-rose-600 font-bold bg-rose-50 rounded-2xl flex items-center justify-center gap-2">
+                <LogOut size={18} /> Sign Out
+              </button>
            </div>
         </div>
       )}

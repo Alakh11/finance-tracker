@@ -24,6 +24,13 @@ function App() {
       setUser(userData);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
+    setUser(null);
+    window.location.href = '/'; 
+  };
+
   if (!user) {
     return (
       <div 
@@ -42,7 +49,7 @@ function App() {
   }
 
   // Logged in? Show the app router
-  return <RouterProvider router={router} context={{ user }} />;
+  return <RouterProvider router={router} context={{ user, handleLogout }} />;
 }
 
 export default App;
