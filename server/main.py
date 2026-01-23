@@ -522,3 +522,48 @@ def stop_recurring(id: int):
     conn.commit()
     conn.close()
     return {"message": "Recurring stopped"}
+
+@app.get("/income/daily/{email}")
+def get_daily_income(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        # Group income by specific date
+        cursor.execute("""
+            SELECT date, SUM(amount) as total
+            FROM transactions 
+            WHERE user_email = %s AND type = 'income'
+            GROUP BY date
+            ORDER BY date DESC
+            LIMIT 30 -- Last 30 days of activity
+        """, (email,))
+        data = cursor.fetchall()
+        conn.close()
+        return data
+    except Exception as e:
+        logger.error(f"Daily Income Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/income/monthly/{email}")
+def get_monthly_income(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        # Group income by Month and Year
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(date, '%Y-%m') as month_year,
+                DATE_FORMAT(date, '%M %Y') as display_name,
+                SUM(amount) as total
+            FROM transactions 
+            WHERE user_email = %s AND type = 'income'
+            GROUP BY YEAR(date), MONTH(date)
+            ORDER BY YEAR(date) DESC, MONTH(date) DESC
+            LIMIT 12 -- Last 12 months
+        """, (email,))
+        data = cursor.fetchall()
+        conn.close()
+        return data
+    except Exception as e:
+        logger.error(f"Monthly Income Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
