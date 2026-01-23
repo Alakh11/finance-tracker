@@ -97,8 +97,16 @@ const analyticsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'analytics',
   loader: async ({ context }) => {
-    const res = await axios.get(`${API_URL}/analytics/${context.user.email}`);
-    return res.data;
+    const [analytics, dailyIncome, monthlyIncome] = await Promise.all([
+        axios.get(`${API_URL}/analytics/${context.user.email}`),
+        axios.get(`${API_URL}/income/daily/${context.user.email}`),
+        axios.get(`${API_URL}/income/monthly/${context.user.email}`)
+    ]);
+    return { 
+        ...analytics.data, 
+        dailyIncome: dailyIncome.data, 
+        monthlyIncome: monthlyIncome.data 
+    };
   },
   component: Analytics,
 });
