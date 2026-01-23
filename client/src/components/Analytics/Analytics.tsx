@@ -22,7 +22,7 @@ export default function Analytics() {
                <h3 className="text-xl font-bold text-stone-700">Monthly Income Trend</h3>
            </div>
            
-           <div className="h-72">
+           <div className="h-72 w-full min-w-0">
              <ResponsiveContainer width="100%" height="100%">
                <AreaChart data={[...monthlyIncome].reverse()}>
                  <defs>
@@ -35,7 +35,6 @@ export default function Analytics() {
                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12}} tickFormatter={(value) => `₹${value/1000}k`} />
                  <Tooltip 
                     contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
-                    // FIXED: Type error solved by accepting 'any' or handling undefined
                     formatter={(value: any) => [`₹${Number(value || 0).toLocaleString()}`, 'Income']}
                  />
                  <Area type="monotone" dataKey="total" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
@@ -49,7 +48,8 @@ export default function Analytics() {
         {/* Expense Breakdown (Pie Chart) */}
         <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-50">
            <h3 className="text-lg font-bold text-stone-700 mb-6">Expense Breakdown</h3>
-           <div className="h-64">
+           
+           <div className="h-64 w-full min-w-0">
              <ResponsiveContainer width="100%" height="100%">
                <PieChart>
                  <Pie 
@@ -60,7 +60,6 @@ export default function Analytics() {
                     paddingAngle={5} 
                     dataKey="value"
                  >
-                   {/* FIXED: Changed 'entry' to '_' to ignore unused variable */}
                    {pie.map((_: any, index: number) => (
                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                    ))}
