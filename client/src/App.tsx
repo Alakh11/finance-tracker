@@ -28,7 +28,7 @@ function App() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
     setUser(null);
-    window.location.href = '/'; 
+    window.location.href = '/finance-tracker/';
   };
 
   if (!user) {

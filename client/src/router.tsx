@@ -137,6 +137,7 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
+  basepath: '/finance-tracker', 
   context: { 
     user: undefined!, 
     handleLogout: undefined!
