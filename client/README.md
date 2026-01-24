@@ -18,3 +18,8 @@ The frontend is a **React + TypeScript** application built with **Vite**. It fea
 ### 1. Install Node Modules
 ```bash
 npm install
+```
+### 2. Run
+```bash
+npm run dev
+```
