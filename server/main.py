@@ -569,3 +569,27 @@ def get_monthly_income(email: str):
     except Exception as e:
         logger.error(f"Monthly Income Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/category-monthly/{email}")
+def get_category_monthly_analytics(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        # Fetch expenses grouped by Month and Category
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(MIN(t.date), '%b %Y') as month,
+                c.name as category,
+                SUM(t.amount) as total
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            WHERE t.user_email = %s AND t.type = 'expense'
+            GROUP BY YEAR(t.date), MONTH(t.date), c.name
+            ORDER BY YEAR(t.date), MONTH(t.date)
+        """, (email,))
+        data = cursor.fetchall()
+        conn.close()
+        return data
+    except Exception as e:
+        logger.error(f"Category Monthly Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
