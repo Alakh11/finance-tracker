@@ -3,12 +3,26 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import type { User } from './types';
+import axios from 'axios';
 import Auth from './components/Auth/Auth';
+import ErrorPage from './components/Error/ErrorPage';
 
 function App() {
+  const [serverError, setServerError] = useState<number | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response) {
+            if (error.response.status === 503) setServerError(503);
+            if (error.response.status === 410) setServerError(410);
+        }
+        return Promise.reject(error);
+      }
+    );
+    
     const token = localStorage.getItem('auth_token');
     const savedUser = localStorage.getItem('user_data');
     
@@ -16,7 +30,10 @@ function App() {
     if (token && savedUser) {
         setUser(JSON.parse(savedUser));
     }
+  return () => axios.interceptors.response.eject(interceptor);
   }, []);
+  if (serverError === 503) return <ErrorPage code={503} />;
+  if (serverError === 410) return <ErrorPage code={410} />;
 
   const handleLoginSuccess = (userData: any, token: string) => {
       localStorage.setItem('auth_token', token);

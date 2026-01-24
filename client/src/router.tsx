@@ -3,7 +3,8 @@ import {
   createRoute, 
   createRootRouteWithContext, 
   Outlet, 
-  redirect 
+  redirect,
+  NotFoundRoute, 
 } from '@tanstack/react-router';
 import axios from 'axios';
 import Layout from './components/Layout';
@@ -15,6 +16,8 @@ import Goals from './components/Goals/Goals';
 import Analytics from './components/Analytics/Analytics';
 import CategoryManager from './components/CategoryManager/CategoryManager';
 import type { User } from './types';
+import NotFound from './components/Error/NotFound';
+import ErrorPage from './components/Error/ErrorPage';
 
 // Context for the router (User is required)
 interface RouterContext {
@@ -31,6 +34,10 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
       <Outlet />
     </Layout>
   ),
+  errorComponent: ({ error }) => {
+    return <ErrorPage code={500} customMessage={error.message} />;
+  },
+  notFoundComponent: NotFound,
 });
 
 // --- 2. Dashboard Route ---
@@ -132,6 +139,10 @@ const indexRoute = createRoute({
     throw redirect({ to: '/dashboard' });
   },
 });
+const notFoundRoute = new NotFoundRoute({
+  getParentRoute: () => rootRoute,
+  component: NotFound,
+});
 
 // --- Assemble Route Tree ---
 const routeTree = rootRoute.addChildren([
@@ -152,6 +163,7 @@ export const router = createRouter({
     user: undefined!, 
     handleLogout: undefined!
   },
+  notFoundRoute,
 });
 
 declare module '@tanstack/react-router' {
