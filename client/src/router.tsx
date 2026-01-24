@@ -49,7 +49,6 @@ const dashboardRoute = createRoute({
         axios.get(`${API_URL}/dashboard/${context.user.email}`),
         axios.get(`${API_URL}/categories/${context.user.email}`)
     ]);
-    // Merge them: { totals: [], recent: [], categories: [] }
     return { ...dashboard.data, categories: categories.data };
   },
   component: Dashboard,
@@ -104,17 +103,19 @@ const analyticsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'analytics',
   loader: async ({ context }) => {
-    const [analytics, dailyIncome, monthlyIncome, categoryMonthly] = await Promise.all([
+    const [analytics, dailyIncome, monthlyIncome, categoryMonthly, goals] = await Promise.all([
         axios.get(`${API_URL}/analytics/${context.user.email}`),
         axios.get(`${API_URL}/income/daily/${context.user.email}`),
         axios.get(`${API_URL}/income/monthly/${context.user.email}`),
-        axios.get(`${API_URL}/analytics/category-monthly/${context.user.email}`)
+        axios.get(`${API_URL}/analytics/category-monthly/${context.user.email}`),
+        axios.get(`${API_URL}/goals/${context.user.email}`)
     ]);
     return { 
         ...analytics.data, 
         dailyIncome: dailyIncome.data, 
         monthlyIncome: monthlyIncome.data,
-        categoryMonthly: categoryMonthly.data 
+        categoryMonthly: categoryMonthly.data,
+        goals: goals.data 
     };
   },
   component: Analytics,

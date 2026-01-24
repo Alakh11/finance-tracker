@@ -1,38 +1,41 @@
 import { useMemo } from 'react';
 import { useLoaderData } from '@tanstack/react-router';
 import { 
-  PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, LineChart, Line,
+  PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
-import { TrendingUp, PieChart as PieIcon, BarChart3, LineChart as LineIcon } from 'lucide-react';
+import { TrendingUp, PieChart as PieIcon, BarChart3, Target, Calendar } from 'lucide-react';
 
 export default function Analytics() {
-  const { pie, bar, dailyIncome,monthlyIncome, categoryMonthly } = useLoaderData({ from: '/analytics' });
+  const { pie, bar, dailyIncome, monthlyIncome, categoryMonthly, goals } = useLoaderData({ from: '/analytics' });
   
   const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6'];
 
-  // 1. Process Data for Savings Trend (Income - Expense)
-  const savingsData = useMemo(() => {
-    return bar.map((item: any) => ({
-      name: item.name,
-      savings: item.income - item.expense,
-      income: item.income,
-      expense: item.expense
+  // 1. Process Data for Goals Progress (Stacked Bar: Saved vs Remaining)
+  const goalsData = useMemo(() => {
+    if (!goals) return [];
+    return goals.map((g: any) => ({
+        name: g.name,
+        Saved: g.current_amount,
+        Remaining: Math.max(0, g.target_amount - g.current_amount),
+        Target: g.target_amount
     }));
-  }, [bar]);
+  }, [goals]);
 
   // 2. Process Data for Category-wise Monthly Stacked Bar
   const { stackedData, categories } = useMemo(() => {
     const uniqueCategories = new Set<string>();
     const grouped: any = {};
 
-    categoryMonthly.forEach((item: any) => {
-        uniqueCategories.add(item.category);
-        if (!grouped[item.month]) {
-            grouped[item.month] = { name: item.month };
-        }
-        grouped[item.month][item.category] = item.total;
-    });
+    if (categoryMonthly) {
+        categoryMonthly.forEach((item: any) => {
+            uniqueCategories.add(item.category);
+            if (!grouped[item.month]) {
+                grouped[item.month] = { name: item.month };
+            }
+            grouped[item.month][item.category] = item.total;
+        });
+    }
 
     return {
         stackedData: Object.values(grouped),
@@ -43,6 +46,7 @@ export default function Analytics() {
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       <h2 className="text-3xl font-bold text-stone-800 tracking-tight">Financial Analytics</h2>
+      
       {/* --- Monthly Income Summary (Area Chart) --- */}
       <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-50">
            <div className="flex items-center gap-3 mb-6">
@@ -73,16 +77,16 @@ export default function Analytics() {
            </div>
       </div>
       
-      {/* ROW 1: Expense Pie & Savings Trend */}
+      {/* ROW 1: Expense Pie & GOALS PROGRESS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* Expense Breakdown (Pie Chart) */}
+        {/* 1. Expense Breakdown (Pie Chart) */}
         <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-50">
            <div className="flex items-center gap-3 mb-6">
                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl"><PieIcon className="w-6 h-6" /></div>
                <h3 className="text-xl font-bold text-stone-700">Expense Breakdown</h3>
            </div>
-           <div className="h-72">
+           <div className="h-72 w-full min-w-0">
              <ResponsiveContainer width="100%" height="100%">
                <PieChart>
                  <Pie 
@@ -104,26 +108,35 @@ export default function Analytics() {
            </div>
         </div>
 
-        {/* 2. Savings Trend (Line Chart) */}
+        {/* 2. GOALS PROGRESS (Stacked Bar Chart) */}
         <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-50">
            <div className="flex items-center gap-3 mb-6">
-               <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><LineIcon className="w-6 h-6" /></div>
-               <h3 className="text-xl font-bold text-stone-700">Savings Trend</h3>
+               <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Target className="w-6 h-6" /></div>
+               <h3 className="text-xl font-bold text-stone-700">Goals Progress</h3>
            </div>
            <div className="h-72 w-full min-w-0">
-             <ResponsiveContainer width="100%" height="100%">
-               <LineChart data={savingsData}>
-                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9CA3AF'}} dy={10} />
-                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9CA3AF'}} tickFormatter={(v) => `₹${v/1000}k`} />
-                 <Tooltip 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
-                    formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Savings']}
-                 />
-                 <Legend />
-                 <Line type="monotone" dataKey="savings" stroke="#3B82F6" strokeWidth={3} dot={{r: 4, fill: '#3B82F6', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
-               </LineChart>
-             </ResponsiveContainer>
+             {goalsData.length > 0 ? (
+                 <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={goalsData} layout="vertical" barSize={20}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12, fill: '#6B7280'}} />
+                        <Tooltip 
+                            cursor={{fill: '#F3F4F6'}}
+                            contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
+                            formatter={(value: any, name?: string) => [`₹${Number(value).toLocaleString()}`, name || '']}
+                        />
+                        <Legend />
+                        <Bar dataKey="Saved" stackId="a" fill="#10B981" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="Remaining" stackId="a" fill="#E5E7EB" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                 </ResponsiveContainer>
+             ) : (
+                 <div className="h-full flex flex-col items-center justify-center text-stone-400">
+                     <Target className="w-12 h-12 mb-2 opacity-20" />
+                     <p>No goals set yet</p>
+                 </div>
+             )}
            </div>
         </div>
       </div>
@@ -173,7 +186,6 @@ export default function Analytics() {
                     contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
                     formatter={(value: any) => `₹${Number(value).toLocaleString()}`}
                  />
-                 {/* No Legend to save space, tooltip shows details */}
                  {categories.map((cat: string, index: number) => (
                     <Bar key={cat} dataKey={cat} stackId="a" fill={COLORS[index % COLORS.length]} radius={[0, 0, 0, 0]} barSize={30} />
                  ))}
@@ -184,7 +196,7 @@ export default function Analytics() {
 
       </div>
       
-      {/* Daily Income Log (Kept from previous) */}
+      {/* Daily Income List */}
       <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-50">
           <h3 className="text-lg font-bold text-stone-700 mb-6">Recent Daily Income</h3>
           <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
@@ -193,7 +205,12 @@ export default function Analytics() {
                ) : (
                    dailyIncome.map((item: any, idx: number) => (
                        <div key={idx} className="flex justify-between items-center p-3 bg-stone-50 rounded-xl hover:bg-stone-100 transition">
-                           <span className="font-bold text-stone-600 text-sm">{item.date}</span>
+                           <div className="flex items-center gap-3">
+                               <div className="p-2 bg-white rounded-lg text-stone-400 shadow-sm">
+                                   <Calendar className="w-4 h-4" />
+                                </div>
+                               <span className="font-bold text-stone-600 text-sm">{item.date}</span>
+                           </div>
                            <span className="font-bold text-emerald-600">+ ₹{item.total.toLocaleString()}</span>
                        </div>
                    ))
