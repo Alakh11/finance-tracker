@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export interface User {
   name: string;
   email: string;
@@ -5,6 +7,9 @@ export interface User {
 }
 
 export interface Transaction {
+  category_name: string;
+  description: ReactNode;
+  tags: any;
   id: number;
   amount: number;
   type: 'income' | 'expense';

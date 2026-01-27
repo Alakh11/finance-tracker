@@ -59,8 +59,14 @@ const transactionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'transactions',
   loader: async ({ context }) => {
-    const res = await axios.get(`${API_URL}/transactions/all/${context.user.email}`);
-    return res.data;
+    const [transactions, categories] = await Promise.all([
+        axios.get(`${API_URL}/transactions/all/${context.user.email}`),
+        axios.get(`${API_URL}/categories/${context.user.email}`)
+    ]);
+    return { 
+        initialTransactions: transactions.data, 
+        categories: categories.data 
+    };
   },
   component: Transactions,
 });

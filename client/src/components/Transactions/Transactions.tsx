@@ -1,90 +1,233 @@
 import { useState } from 'react';
-import axios from 'axios';
-import { Search, Trash2 } from 'lucide-react';
 import { useLoaderData, useRouter } from '@tanstack/react-router';
+import axios from 'axios';
+import { 
+  Search, Filter, X, Calendar, IndianRupee, Tag, Trash2 
+} from 'lucide-react';
 import type { Transaction } from '../../types';
 
 export default function Transactions() {
   const router = useRouter();
-  const transactions = useLoaderData({ from: '/transactions' });
-  
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const { initialTransactions, categories } = useLoaderData({ from: '/transactions' });
+  const user = router.options.context?.user;
   const API_URL = "https://finance-tracker-q60v.onrender.com";
 
-  const filtered = transactions.filter((t: Transaction) => {
-     const matchesSearch = (t.note || t.category).toLowerCase().includes(search.toLowerCase());
-     const matchesType = filter === 'all' || t.type === filter;
-     return matchesSearch && matchesType;
+  // State
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Filter State
+  const [filters, setFilters] = useState({
+    search: '',
+    start_date: '',
+    end_date: '',
+    category_id: '',
+    min_amount: '',
+    max_amount: ''
   });
 
-  const deleteTransaction = async (id: number) => {
-    if(confirm("Delete this transaction?")) {
-        await axios.delete(`${API_URL}/transactions/${id}`);
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
+  };
 
-        router.invalidate();
+  const applyFilters = async () => {
+    if (!user?.email) return;
+    setLoading(true);
+    try {
+        const params: any = {};
+        Object.keys(filters).forEach(key => {
+            // @ts-ignore
+            if (filters[key]) params[key] = filters[key];
+        });
+
+        const res = await axios.get(`${API_URL}/transactions/all/${user.email}`, { params });
+        setTransactions(res.data);
+    } catch (error) {
+        console.error("Filter failed", error);
+    } finally {
+        setLoading(false);
     }
   };
 
-  return (
-    <div className="space-y-6 animate-fade-in">
-       <div className="flex flex-col md:flex-row justify-between gap-4">
-          <h2 className="text-3xl font-bold text-stone-800">Transactions</h2>
-          <div className="flex gap-2">
-             <div className="relative">
-                <Search className="absolute left-3 top-3 w-4 h-4 text-stone-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search..." 
-                  className="pl-9 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-             </div>
-             <select 
-               className="px-4 py-2.5 bg-white border border-stone-200 rounded-xl outline-none"
-               value={filter}
-               onChange={e => setFilter(e.target.value)}
-             >
-                <option value="all">All</option>
-                <option value="income">Income</option>
-                <option value="expense">Expense</option>
-             </select>
-          </div>
-       </div>
+  const clearFilters = async () => {
+    if (!user?.email) return;
+    setFilters({ search: '', start_date: '', end_date: '', category_id: '', min_amount: '', max_amount: '' });
+    setLoading(true);
+    try {
+        const res = await axios.get(`${API_URL}/transactions/all/${user.email}`);
+        setTransactions(res.data);
+    } catch (error) {
+        console.error("Reset failed", error);
+    } finally {
+        setLoading(false);
+    }
+  };
 
-       <div className="bg-white rounded-[2rem] shadow-sm border border-stone-50 overflow-hidden">
-          <table className="w-full text-left">
-             <thead className="bg-stone-50 text-stone-500 text-sm font-semibold uppercase">
-                <tr>
-                   <th className="p-6">Description</th>
-                   <th className="p-6">Category</th>
-                   <th className="p-6">Date</th>
-                   <th className="p-6 text-right">Amount</th>
-                </tr>
-             </thead>
-             <tbody className="divide-y divide-stone-50">
-                {filtered.map((t: Transaction) => (
-                   <tr key={t.id} className="hover:bg-stone-50/50 transition-colors">
-                      <td className="p-6 font-bold text-stone-700">{t.note || 'No Description'}</td>
-                      <td className="p-6">
-                         <span className="px-3 py-1 rounded-full bg-stone-100 text-xs font-bold text-stone-500">{t.category}</span>
-                      </td>
-                      <td className="p-6 text-stone-500 text-sm">{t.date}</td>
-                      <td className="p-6 text-right font-bold flex justify-end items-center gap-4">
-                        <span className={t.type === 'income' ? 'text-emerald-600' : 'text-stone-800'}>
-                            {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString()}
-                        </span>
-                        <button onClick={() => deleteTransaction(t.id)} className="text-stone-300 hover:text-rose-500 transition">
-                            <Trash2 size={18} />
-                        </button>
-                    </td>
-                   </tr>
-                ))}
-             </tbody>
-          </table>
-          {filtered.length === 0 && <div className="p-10 text-center text-stone-400">No transactions found.</div>}
-       </div>
+  const handleDelete = async (id: number) => {
+      if(!confirm("Are you sure you want to delete this transaction?")) return;
+      try {
+          await axios.delete(`${API_URL}/transactions/${id}`);
+          setTransactions(prev => prev.filter(t => t.id !== id));
+          router.invalidate(); 
+      } catch (e) {
+          alert("Failed to delete transaction");
+      }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in pb-20">
+      
+      {/* --- Header & Search --- */}
+      <div className="flex flex-col md:flex-row justify-between gap-4">
+        <h2 className="text-3xl font-bold text-stone-800">Transactions</h2>
+        
+        <div className="flex gap-2">
+           <div className="relative flex-1 md:w-64">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+               <input 
+                  type="text" 
+                  name="search"
+                  placeholder="Search description..." 
+                  value={filters.search}
+                  onChange={handleFilterChange}
+                  onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-stone-800"
+               />
+           </div>
+           <button 
+             onClick={() => setIsFilterOpen(!isFilterOpen)}
+             className={`p-2.5 rounded-xl border transition-colors ${isFilterOpen ? 'bg-stone-800 text-white border-stone-800' : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'}`}
+           >
+             <Filter className="w-5 h-5" />
+           </button>
+        </div>
+      </div>
+
+      {/* --- Expandable Filter Panel --- */}
+      {isFilterOpen && (
+        <div className="bg-white p-6 rounded-[1.5rem] shadow-xl shadow-stone-200/50 border border-stone-100 animate-in slide-in-from-top-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {/* Date Inputs */}
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-500 uppercase">From Date</label>
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input type="date" name="start_date" value={filters.start_date} onChange={handleFilterChange} className="w-full pl-10 pr-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-stone-800 outline-none" />
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-500 uppercase">To Date</label>
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input type="date" name="end_date" value={filters.end_date} onChange={handleFilterChange} className="w-full pl-10 pr-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-stone-800 outline-none" />
+                    </div>
+                </div>
+
+                {/* Amount Inputs */}
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-500 uppercase">Min Amount</label>
+                    <div className="relative">
+                        <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input type="number" name="min_amount" placeholder="0" value={filters.min_amount} onChange={handleFilterChange} className="w-full pl-10 pr-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-stone-800 outline-none" />
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-500 uppercase">Max Amount</label>
+                    <div className="relative">
+                        <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input type="number" name="max_amount" placeholder="∞" value={filters.max_amount} onChange={handleFilterChange} className="w-full pl-10 pr-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-stone-800 outline-none" />
+                    </div>
+                </div>
+
+                {/* Category Dropdown */}
+                <div className="md:col-span-2 lg:col-span-4 space-y-1">
+                    <label className="text-xs font-bold text-stone-500 uppercase">Category</label>
+                    <div className="relative">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <select name="category_id" value={filters.category_id} onChange={handleFilterChange} className="w-full pl-10 pr-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-stone-800 outline-none bg-white">
+                            <option value="">All Categories</option>
+                            {categories?.map((c: any) => (
+                                <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
+                <button onClick={clearFilters} className="px-4 py-2 text-sm font-bold text-stone-500 hover:text-stone-800 flex items-center gap-2">
+                    <X className="w-4 h-4" /> Clear
+                </button>
+                <button onClick={applyFilters} disabled={loading} className="px-6 py-2 bg-stone-900 text-white rounded-lg text-sm font-bold hover:bg-stone-800 transition disabled:opacity-50">
+                    {loading ? 'Filtering...' : 'Apply Filters'}
+                </button>
+            </div>
+        </div>
+      )}
+
+      {/* --- TABLE UI --- */}
+      <div className="bg-white rounded-[2rem] shadow-sm border border-stone-50 overflow-hidden">
+        {loading ? (
+             <div className="p-10 text-center text-stone-400">Loading...</div>
+        ) : (
+          <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[800px]">
+                 <thead className="bg-stone-50 text-stone-500 text-sm font-semibold uppercase">
+                    <tr>
+                       <th className="p-6 whitespace-nowrap">Category</th>
+                       <th className="p-6 whitespace-nowrap">Description</th>
+                       <th className="p-6 whitespace-nowrap">Date</th>
+                       <th className="p-6 text-right whitespace-nowrap">Amount</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-stone-50">
+                    {transactions.length === 0 ? (
+                        <tr>
+                            <td colSpan={4} className="p-10 text-center text-stone-400">No transactions found.</td>
+                        </tr>
+                    ) : (
+                        transactions.map((t: Transaction) => (
+                        <tr key={t.id} className="hover:bg-stone-50/50 transition-colors group">
+                            {/* 1. Category */}
+                            <td className="p-6 whitespace-nowrap">
+                                <span className="px-3 py-1 rounded-full bg-stone-100 text-xs font-bold text-stone-500">
+                                    {t.category_name || t.category || 'Uncategorized'}
+                                </span>
+                            </td>
+
+                            {/* 2. Description */}
+                            <td className="p-6 font-bold text-stone-700 min-w-[200px]">
+                                {t.description || t.note || 'No Description'}
+                                {t.tags && <span className="ml-2 text-xs font-normal text-blue-500">#{t.tags}</span>}
+                            </td>
+
+                            {/* 3. Date */}
+                            <td className="p-6 text-stone-500 text-sm whitespace-nowrap">
+                                {new Date(t.date).toLocaleDateString()}
+                            </td>
+
+                            {/* 4. Amount + Delete Button */}
+                            <td className="p-6 text-right font-bold flex justify-end items-center gap-4 whitespace-nowrap">
+                                <span className={t.type === 'income' ? 'text-emerald-600' : 'text-stone-800'}>
+                                    {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString('en-IN')}
+                                </span>
+                                <button 
+                                    onClick={() => handleDelete(t.id)} 
+                                    className="text-stone-300 hover:text-rose-500 transition opacity-100 md:opacity-0 group-hover:opacity-100"
+                                    title="Delete"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </td>
+                        </tr>
+                        ))
+                    )}
+                 </tbody>
+              </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
