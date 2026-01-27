@@ -466,34 +466,41 @@ def get_budget_history(email: str):
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
         
-        # Get total spending vs total budget for last 6 months
-        # Note: We assume the current budget applies historically for simplicity in this version
         query = """
             SELECT 
-                DATE_FORMAT(t.date, '%%b') as month,
+                DATE_FORMAT(t.date, '%%Y-%%m') as year_month,
+                DATE_FORMAT(t.date, '%%b') as month_name,
                 SUM(t.amount) as total_spent
             FROM transactions t
             WHERE t.user_email = %s 
               AND t.type = 'expense'
               AND t.date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(t.date, '%%Y-%%m'), month
-            ORDER BY DATE_FORMAT(t.date, '%%Y-%%m') ASC
+            GROUP BY year_month, month_name
+            ORDER BY year_month ASC
         """
         cursor.execute(query, (email,))
-        history = cursor.fetchall()
+        history = cursor.fetchall() or []
         
-        # Get Total Budget Limit (Sum of all categories)
         cursor.execute("SELECT SUM(amount) as total_limit FROM budgets WHERE user_email = %s", (email,))
         limit_row = cursor.fetchone()
-        total_limit = limit_row['total_limit'] if limit_row and limit_row['total_limit'] else 0
         
-        # Add limit to history
+        total_limit = 0
+        if limit_row and limit_row['total_limit']:
+            total_limit = float(limit_row['total_limit'])
+        
+        # Format for frontend
+        formatted_history = []
         for h in history:
-            h['budget_limit'] = total_limit
+            formatted_history.append({
+                "month": h['month_name'],
+                "total_spent": float(h['total_spent']),
+                "budget_limit": total_limit
+            })
             
         conn.close()
-        return history
+        return formatted_history
     except Exception as e:
+        print(f"HISTORY ERROR: {e}") 
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/budgets")
