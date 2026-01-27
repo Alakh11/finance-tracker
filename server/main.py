@@ -412,7 +412,7 @@ def get_budgets_status(email: str):
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
         
-        # 1. Seed Defaults if missing
+        # 1. Seed Defaults
         defaults = [('Food', '#EF4444', 'expense'), ('Travel', '#F59E0B', 'expense'), 
                     ('Rent', '#6366F1', 'expense'), ('Bills', '#10B981', 'expense'),
                     ('Shopping', '#EC4899', 'expense'), ('Salary', '#10B981', 'income')]
@@ -427,7 +427,6 @@ def get_budgets_status(email: str):
             SELECT 
                 c.id as category_id, 
                 c.name, 
-                c.icon,
                 c.color,
                 COALESCE(b.amount, 0) as budget_limit,
                 COALESCE(SUM(t.amount), 0) as spent
@@ -438,13 +437,21 @@ def get_budgets_status(email: str):
                  AND t.type = 'expense'
                  AND DATE_FORMAT(t.date, '%%Y-%%m') = DATE_FORMAT(NOW(), '%%Y-%%m')
             WHERE (c.user_email = %s OR c.user_email IS NULL) AND c.type = 'expense'
-            GROUP BY c.id, c.name, c.icon, c.color, b.amount
+            GROUP BY c.id, c.name, c.color, b.amount
         """
         cursor.execute(query, (email, email, email))
         budgets = cursor.fetchall()
         
-        # 3. Calculate Alerts/Percentage
+        # 3. Add Icons & Calculate Stats in Python
+        icon_map = {
+            'Food': '🍔', 'Travel': '✈️', 'Rent': '🏠', 'Bills': '🧾', 
+            'Shopping': '🛍️', 'Salary': '💰', 'Health': '🏥', 'Entertainment': '🎬'
+        }
+
         for b in budgets:
+            # Assign icon based on name (default to Tag icon)
+            b['icon'] = icon_map.get(b['name'], '🏷️')
+            
             b['percentage'] = (b['spent'] / b['budget_limit'] * 100) if b['budget_limit'] > 0 else 0
             b['is_over'] = b['spent'] > b['budget_limit'] and b['budget_limit'] > 0
             
@@ -453,7 +460,6 @@ def get_budgets_status(email: str):
     except Exception as e:
         logger.error(f"Budget Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/budgets/history/{email}")
 def get_budget_history(email: str):
     try:
