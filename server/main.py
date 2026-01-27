@@ -467,37 +467,47 @@ def get_budget_history(email: str):
         cursor = conn.cursor(dictionary=True)
         
         query = """
-            SELECT 
-                DATE_FORMAT(t.date, '%%Y-%%m') as year_month,
-                DATE_FORMAT(t.date, '%%b') as month_name,
-                SUM(t.amount) as total_spent
-            FROM transactions t
-            WHERE t.user_email = %s 
-              AND t.type = 'expense'
-              AND t.date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(t.date, '%%Y-%%m'), DATE_FORMAT(t.date, '%%b')
-            ORDER BY DATE_FORMAT(t.date, '%%Y-%%m') ASC
+            SELECT date, amount
+            FROM transactions 
+            WHERE user_email = %s 
+              AND type = 'expense'
+              AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            ORDER BY date ASC
         """
         cursor.execute(query, (email,))
-        history = cursor.fetchall() or [] 
+        transactions = cursor.fetchall()
         
+        # 2. Get Budget Limit
         cursor.execute("SELECT SUM(amount) as total_limit FROM budgets WHERE user_email = %s", (email,))
         limit_row = cursor.fetchone()
+        total_limit = float(limit_row['total_limit']) if limit_row and limit_row['total_limit'] else 0
         
-        total_limit = 0
-        if limit_row and limit_row['total_limit']:
-            total_limit = float(limit_row['total_limit'])
-        
-        formatted_history = []
-        for h in history:
-            formatted_history.append({
-                "month": h['month_name'],
-                "total_spent": float(h['total_spent']),
-                "budget_limit": total_limit
-            })
-            
         conn.close()
-        return formatted_history
+
+        history_map = {}
+        today = datetime.today()
+        
+        for i in range(5, -1, -1):
+            d = today - timedelta(days=i*30)
+            key = d.strftime('%Y-%m') # Key for sorting: "2024-01"
+            name = d.strftime('%b')   # Name for display: "Jan"
+            history_map[key] = {"month": name, "total_spent": 0, "budget_limit": total_limit}
+
+        # Sum up the actual transactions
+        for t in transactions:
+            date_obj = t['date']
+            if isinstance(date_obj, str):
+                date_obj = datetime.strptime(date_obj, '%Y-%m-%d')
+            
+            key = date_obj.strftime('%Y-%m')
+            
+            if key in history_map:
+                history_map[key]['total_spent'] += float(t['amount'])
+
+        final_history = sorted(history_map.values(), key=lambda x: list(history_map.keys())[list(history_map.values()).index(x)])
+        
+        return list(final_history)
+
     except Exception as e:
         print(f"HISTORY ERROR: {e}") 
         raise HTTPException(status_code=500, detail=str(e))
