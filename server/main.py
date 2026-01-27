@@ -475,11 +475,11 @@ def get_budget_history(email: str):
             WHERE t.user_email = %s 
               AND t.type = 'expense'
               AND t.date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-            GROUP BY year_month, month_name
-            ORDER BY year_month ASC
+            GROUP BY DATE_FORMAT(t.date, '%%Y-%%m'), DATE_FORMAT(t.date, '%%b')
+            ORDER BY DATE_FORMAT(t.date, '%%Y-%%m') ASC
         """
         cursor.execute(query, (email,))
-        history = cursor.fetchall() or []
+        history = cursor.fetchall() or [] 
         
         cursor.execute("SELECT SUM(amount) as total_limit FROM budgets WHERE user_email = %s", (email,))
         limit_row = cursor.fetchone()
@@ -488,7 +488,6 @@ def get_budget_history(email: str):
         if limit_row and limit_row['total_limit']:
             total_limit = float(limit_row['total_limit'])
         
-        # Format for frontend
         formatted_history = []
         for h in history:
             formatted_history.append({
