@@ -76,8 +76,16 @@ const budgetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'budget',
   loader: async ({ context }) => {
-    const res = await axios.get(`${API_URL}/budgets/${context.user.email}`);
-    return { budgets: res.data };
+    const [status, categories, history] = await Promise.all([
+        axios.get(`${API_URL}/budgets/${context.user.email}`),
+        axios.get(`${API_URL}/categories/${context.user.email}`),
+        axios.get(`${API_URL}/budgets/history/${context.user.email}`)
+    ]);
+    return { 
+        budgets: status.data, 
+        categories: categories.data,
+        history: history.data 
+    };
   },
   component: BudgetPlanner,
 });
