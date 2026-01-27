@@ -51,6 +51,22 @@ def get_db():
         logger.error(f"DB Error: {e}")
         raise HTTPException(status_code=500, detail="Database Connection Failed")
 
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_email VARCHAR(255) NOT NULL,
+            category_id INT NOT NULL,
+            amount DECIMAL(10, 2) NOT NULL,
+            UNIQUE KEY unique_budget (user_email, category_id)
+        )
+    """)
+    conn.commit()
+    conn.close()
+
 # --- Auth Models ---
 class UserRegister(BaseModel):
     name: str
@@ -101,6 +117,11 @@ class BudgetUpdate(BaseModel):
     user_email: str
     category_name: str
     limit: float
+
+class BudgetSchema(BaseModel):
+    user_email: str
+    category_id: int
+    amount: float
 
 # --- Endpoints ---
 
@@ -401,7 +422,97 @@ def get_budgets(email: str):
         logger.error(f"Budget Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def get_budgets_status(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Smart Query: Joins Categories + Budgets + Transactions (Current Month Only)
+        query = """
+            SELECT 
+                c.id as category_id, 
+                c.name, 
+                c.icon,
+                COALESCE(b.amount, 0) as budget_limit,
+                COALESCE(SUM(t.amount), 0) as spent
+            FROM categories c
+            LEFT JOIN budgets b ON c.id = b.category_id AND b.user_email = %s
+            LEFT JOIN transactions t ON c.id = t.category_id 
+                 AND t.user_email = %s 
+                 AND t.type = 'expense'
+                 AND DATE_FORMAT(t.date, '%%Y-%%m') = DATE_FORMAT(NOW(), '%%Y-%%m')
+            WHERE c.user_email = %s OR c.user_email IS NULL 
+            GROUP BY c.id
+            HAVING budget_limit > 0 OR spent > 0
+        """
+        cursor.execute(query, (email, email, email))
+        budgets = cursor.fetchall()
+        
+        # Calculate Alerts/Percentage
+        for b in budgets:
+            b['percentage'] = (b['spent'] / b['budget_limit'] * 100) if b['budget_limit'] > 0 else 0
+            b['is_over'] = b['spent'] > b['budget_limit'] and b['budget_limit'] > 0
+            
+        conn.close()
+        return budgets
+    except Exception as e:
+        logger.error(f"Budget Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 4. GET BUDGET HISTORY (Chart)
+@app.get("/budgets/history/{email}")
+def get_budget_history(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get total spending vs total budget for last 6 months
+        # Note: We assume the current budget applies historically for simplicity in this version
+        query = """
+            SELECT 
+                DATE_FORMAT(t.date, '%%b') as month,
+                SUM(t.amount) as total_spent
+            FROM transactions t
+            WHERE t.user_email = %s 
+              AND t.type = 'expense'
+              AND t.date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(t.date, '%%Y-%%m'), month
+            ORDER BY DATE_FORMAT(t.date, '%%Y-%%m') ASC
+        """
+        cursor.execute(query, (email,))
+        history = cursor.fetchall()
+        
+        # Get Total Budget Limit (Sum of all categories)
+        cursor.execute("SELECT SUM(amount) as total_limit FROM budgets WHERE user_email = %s", (email,))
+        limit_row = cursor.fetchone()
+        total_limit = limit_row['total_limit'] if limit_row and limit_row['total_limit'] else 0
+        
+        # Add limit to history
+        for h in history:
+            h['budget_limit'] = total_limit
+            
+        conn.close()
+        return history
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/budgets")
+def set_budget(budget: BudgetSchema):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        # Insert or Update (Upsert)
+        cursor.execute("""
+            INSERT INTO budgets (user_email, category_id, amount)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE amount = %s
+        """, (budget.user_email, budget.category_id, budget.amount, budget.amount))
+        conn.commit()
+        conn.close()
+        return {"message": "Budget saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 def update_budget(data: BudgetUpdate):
     try:
         conn = get_db()
