@@ -450,19 +450,65 @@ def get_analytics(email: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/transactions/all/{email}")
-def get_all_transactions(email: str):
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT t.id, t.amount, t.type, t.date, t.note, t.payment_mode, c.name as category 
-        FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_email = %s 
-        ORDER BY t.date DESC
-    """, (email,))
-    data = cursor.fetchall()
-    conn.close()
-    return data
+def get_all_transactions(
+    email: str,
+    # Add optional query parameters
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category_id: Optional[int] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    search: Optional[str] = None
+):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Base Query
+        query = """
+            SELECT t.*, c.name as category_name 
+            FROM transactions t 
+            LEFT JOIN categories c ON t.category_id = c.id 
+            WHERE t.user_email = %s
+        """
+        params = [email]
+
+        # 1. Date Range
+        if start_date:
+            query += " AND t.date >= %s"
+            params.append(start_date)
+        if end_date:
+            query += " AND t.date <= %s"
+            params.append(end_date)
+            
+        # 2. Category Filter
+        if category_id:
+            query += " AND t.category_id = %s"
+            params.append(category_id)
+            
+        # 3. Amount Range
+        if min_amount is not None:
+            query += " AND t.amount >= %s"
+            params.append(min_amount)
+        if max_amount is not None:
+            query += " AND t.amount <= %s"
+            params.append(max_amount)
+            
+        # 4. Search (Description or Tags)
+        if search:
+            query += " AND (t.description LIKE %s OR t.tags LIKE %s)"
+            search_term = f"%{search}%"
+            params.extend([search_term, search_term])
+
+        query += " ORDER BY t.date DESC"
+
+        cursor.execute(query, params)
+        transactions = cursor.fetchall()
+        conn.close()
+        return transactions
+    except Exception as e:
+        logger.error(f"Filter Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/goals/{email}")
 def get_goals(email: str):
