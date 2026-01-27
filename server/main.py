@@ -496,9 +496,9 @@ def get_all_transactions(
             
         # 4. Search (Description or Tags)
         if search:
-            query += " AND (t.note LIKE %s OR t.tags LIKE %s)"
+            query += " AND (t.note LIKE %s OR t.amount LIKE %s OR t.type LIKE %s)"
             search_term = f"%{search}%"
-            params.extend([search_term, search_term])
+            params.extend([search_term, search_term, search_term])
 
         query += " ORDER BY t.date DESC"
 
