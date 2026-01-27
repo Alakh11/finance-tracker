@@ -438,7 +438,7 @@ def get_budgets_status(email: str):
                  AND t.type = 'expense'
                  AND DATE_FORMAT(t.date, '%%Y-%%m') = DATE_FORMAT(NOW(), '%%Y-%%m')
             WHERE (c.user_email = %s OR c.user_email IS NULL) AND c.type = 'expense'
-            GROUP BY c.id
+            GROUP BY c.id, c.name, c.icon, c.color, b.amount
         """
         cursor.execute(query, (email, email, email))
         budgets = cursor.fetchall()
