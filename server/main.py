@@ -21,7 +21,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = "YOUR_SUPER_SECRET_KEY" # Change this!
 ALGORITHM = "HS256"
 
-# CORS: Allow both localhost and your Vercel domains
+# CORS
 origins = [
     "http://localhost:5173",
     "https://alakh-finance.onrender.com",
@@ -36,6 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Database Connection ---
 def get_db():
     try:
         return mysql.connector.connect(
@@ -51,21 +52,40 @@ def get_db():
         logger.error(f"DB Error: {e}")
         raise HTTPException(status_code=500, detail="Database Connection Failed")
 
+# --- Initialize Tables on Startup ---
+@app.on_event("startup")
 def init_db():
-    conn = get_db()
-    cursor = conn.cursor()
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
     
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS budgets (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_email VARCHAR(255) NOT NULL,
-            category_id INT NOT NULL,
-            amount DECIMAL(10, 2) NOT NULL,
-            UNIQUE KEY unique_budget (user_email, category_id)
-        )
-    """)
-    conn.commit()
-    conn.close()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS budgets (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_email VARCHAR(255) NOT NULL,
+                category_id INT NOT NULL,
+                amount DECIMAL(10, 2) NOT NULL,
+                UNIQUE KEY unique_budget (user_email, category_id)
+            )
+        """)
+        
+        # Goals Table (Ensure this exists)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goals (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_email VARCHAR(255) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                target_amount DECIMAL(10, 2) NOT NULL,
+                current_amount DECIMAL(10, 2) DEFAULT 0,
+                deadline DATE
+            )
+        """)
+        
+        conn.commit()
+        conn.close()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Init DB Error: {e}")
 
 # --- Auth Models ---
 class UserRegister(BaseModel):
@@ -113,21 +133,10 @@ class GoalUpdate(BaseModel):
     goal_id: int
     amount_added: float
 
-class BudgetUpdate(BaseModel):
-    user_email: str
-    category_name: str
-    limit: float
-
 class BudgetSchema(BaseModel):
     user_email: str
     category_id: int
     amount: float
-
-# --- Endpoints ---
-
-@app.api_route("/", methods=["GET", "HEAD"])
-def health_check():
-    return {"status": "ok", "message": "API is running"}
 
 # --- Helper Functions ---
 def create_access_token(data: dict):
@@ -140,7 +149,11 @@ def send_otp_mock(contact: str):
     logger.info(f"🔑 MOCK OTP for {contact}: {otp}") # View this in Render Logs!
     return otp
 
-# --- Auth Endpoints ---
+@app.api_route("/", methods=["GET", "HEAD"])
+def health_check():
+    return {"status": "ok", "message": "API is running"}
+
+# ================= AUTH ENDPOINTS =================
 
 @app.post("/auth/register")
 def register(user: UserRegister):
@@ -180,9 +193,7 @@ def verify_otp(data: VerifyOTP):
     try:
         # Check OTP
         cursor.execute("SELECT * FROM otps WHERE identifier = %s AND otp_code = %s AND expires_at > NOW()", (data.contact, data.otp))
-        otp_record = cursor.fetchone()
-        
-        if not otp_record:
+        if not cursor.fetchone():
             raise HTTPException(status_code=400, detail="Invalid or Expired OTP")
             
         # Mark User Verified
@@ -237,13 +248,8 @@ def google_login(data: GoogleAuth):
         # 1. Check if user exists by email
         cursor.execute("SELECT * FROM users WHERE email = %s", (data.email,))
         user = cursor.fetchone()
-        
         if not user:
-            # 2. If new user, create them (verified by default since it's Google)
-            cursor.execute(
-                "INSERT INTO users (name, email, profile_pic, is_verified) VALUES (%s, %s, %s, TRUE)",
-                (data.name, data.email, data.picture)
-            )
+            cursor.execute("INSERT INTO users (name, email, profile_pic, is_verified) VALUES (%s, %s, %s, TRUE)", (data.name, data.email, data.picture))
             conn.commit()
             
             # Fetch the new ID
@@ -252,45 +258,28 @@ def google_login(data: GoogleAuth):
             
         # 3. Generate App Token (Same as standard login)
         token = create_access_token({"sub": user['email'], "name": user['name']})
-        
-        return {
-            "token": token, 
-            "user": {
-                "name": user['name'], 
-                "email": user['email'], 
-                "picture": user['profile_pic']
-            }
-        }
+        return {"token": token, "user": {"name": user['name'], "email": user['email'], "picture": user['profile_pic']}}
     except Exception as e:
         logger.error(f"Google Login Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
+# ================= TRANSACTION ENDPOINTS =================
+
 @app.post("/transactions")
 def add_transaction(tx: TransactionCreate):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # 1. Smart Category Lookup: Find ID by Name AND Type
-        cursor.execute(
-            "SELECT id FROM categories WHERE name = %s AND user_email = %s AND type = %s", 
-            (tx.category, tx.user_email, tx.type)
-        )
+        cursor.execute("SELECT id FROM categories WHERE name = %s AND user_email = %s AND type = %s", (tx.category, tx.user_email, tx.type))
         result = cursor.fetchone()
-        
-        # Fallback: If not found, grab the first available category of that type
         if not result:
              cursor.execute("SELECT id FROM categories WHERE user_email = %s AND type = %s LIMIT 1", (tx.user_email, tx.type))
              result = cursor.fetchone()
-        
         cat_id = result[0] if result else 1
 
-        query = """
-        INSERT INTO transactions 
-        (user_email, amount, type, category_id, payment_mode, date, note, is_recurring) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
+        query = "INSERT INTO transactions (user_email, amount, type, category_id, payment_mode, date, note, is_recurring) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
         cursor.execute(query, (tx.user_email, tx.amount, tx.type, cat_id, tx.payment_mode, tx.date, tx.note, tx.is_recurring))
         conn.commit()
         return {"message": "Transaction Saved"}
@@ -300,6 +289,60 @@ def add_transaction(tx: TransactionCreate):
     finally:
         conn.close()
 
+@app.get("/transactions/all/{email}")
+def get_all_transactions(
+    email: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category_id: Optional[int] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    search: Optional[str] = None
+):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        query = """
+            SELECT t.*, c.name as category_name 
+            FROM transactions t 
+            LEFT JOIN categories c ON t.category_id = c.id 
+            WHERE t.user_email = %s
+        """
+        params = [email]
+
+        if start_date:
+            query += " AND t.date >= %s"
+            params.append(start_date)
+        if end_date:
+            query += " AND t.date <= %s"
+            params.append(end_date)
+        if category_id:
+            query += " AND t.category_id = %s"
+            params.append(category_id)
+        if min_amount is not None:
+            query += " AND t.amount >= %s"
+            params.append(min_amount)
+        if max_amount is not None:
+            query += " AND t.amount <= %s"
+            params.append(max_amount)
+        if search:
+            search_text = f"%{search.lower()}%"
+            search_amount_clean = search.replace(",", "")
+            search_amount = f"%{search_amount_clean}%"
+            query += " AND (LOWER(t.note) LIKE %s OR t.amount LIKE %s OR LOWER(t.type) LIKE %s)"
+            params.extend([search_text, search_amount, search_text])
+
+        query += " ORDER BY t.date DESC"
+
+        cursor.execute(query, params)
+        transactions = cursor.fetchall()
+        conn.close()
+        return transactions
+    except Exception as e:
+        logger.error(f"Filter Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.delete("/transactions/{id}")
 def delete_transaction(id: int):
     conn = get_db()
@@ -308,6 +351,8 @@ def delete_transaction(id: int):
     conn.commit()
     conn.close()
     return {"message": "Deleted"}
+
+# ================= CATEGORY ENDPOINTS =================
 
 @app.get("/categories/{email}")
 def get_categories(email: str):
@@ -323,10 +368,7 @@ def add_category(cat: CategoryCreate):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            "INSERT INTO categories (user_email, name, color, type, is_default) VALUES (%s, %s, %s, %s, FALSE)",
-            (cat.user_email, cat.name, cat.color, cat.type)
-        )
+        cursor.execute("INSERT INTO categories (user_email, name, color, type, is_default) VALUES (%s, %s, %s, %s, FALSE)", (cat.user_email, cat.name, cat.color, cat.type))
         conn.commit()
         return {"message": "Category created"}
     except Exception as e:
@@ -339,7 +381,6 @@ def delete_category(id: int):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # Delete related transactions first to verify safety
         cursor.execute("DELETE FROM transactions WHERE category_id = %s", (id,))
         cursor.execute("DELETE FROM categories WHERE id = %s", (id,))
         conn.commit()
@@ -347,92 +388,47 @@ def delete_category(id: int):
     finally:
         conn.close()
 
-@app.get("/dashboard/{email}")
-def get_dashboard(email: str):
+# ================= BUDGET ENDPOINTS (FIXED) =================
+
+@app.post("/budgets")
+def set_budget(budget: BudgetSchema):
     try:
         conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        
-        # Totals
+        cursor = conn.cursor()
         cursor.execute("""
-            SELECT type, SUM(amount) as total 
-            FROM transactions WHERE user_email = %s GROUP BY type
-        """, (email,))
-        totals = cursor.fetchall()
-        
-        # Recent (With Category Name)
-        cursor.execute("""
-            SELECT t.id, t.amount, t.type, t.date, t.note, t.payment_mode, c.name as category
-            FROM transactions t
-            LEFT JOIN categories c ON t.category_id = c.id
-            WHERE t.user_email = %s 
-            ORDER BY t.date DESC LIMIT 5
-        """, (email,))
-        recent = cursor.fetchall()
-        
+            INSERT INTO budgets (user_email, category_id, amount)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE amount = %s
+        """, (budget.user_email, budget.category_id, budget.amount, budget.amount))
+        conn.commit()
         conn.close()
-        return {"totals": totals, "recent": recent}
+        return {"message": "Budget saved"}
     except Exception as e:
-        logger.error(f"Dashboard Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/budgets/{email}")
-def get_budgets(email: str):
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        
-        # Seed Defaults (Includes Income types now)
-        defaults = [
-            ('Food', '#EF4444', 'expense'), 
-            ('Travel', '#F59E0B', 'expense'), 
-            ('Rent', '#6366F1', 'expense'), 
-            ('Bills', '#10B981', 'expense'),
-            ('Shopping', '#EC4899', 'expense'),
-            ('Salary', '#10B981', 'income')
-        ]
-        for name, color, ctype in defaults:
-            try:
-                cursor.execute(
-                    "INSERT IGNORE INTO categories (user_email, name, color, type, is_default) VALUES (%s, %s, %s, %s, TRUE)", 
-                    (email, name, color, ctype)
-                )
-            except: pass
-        conn.commit()
-
-        # Get Budget + Spent (Only for Expenses)
-        query = """
-        SELECT 
-            c.name, c.budget_limit, c.color, c.type, c.id,
-            COALESCE(SUM(t.amount), 0) as spent
-        FROM categories c
-        LEFT JOIN transactions t 
-            ON c.id = t.category_id 
-            AND t.type = 'expense'
-            AND MONTH(t.date) = MONTH(CURRENT_DATE()) 
-            AND YEAR(t.date) = YEAR(CURRENT_DATE())
-        WHERE c.user_email = %s AND c.type = 'expense'
-        GROUP BY c.id, c.name, c.budget_limit, c.color
-        """
-        cursor.execute(query, (email,))
-        results = cursor.fetchall()
-        conn.close()
-        return results
-    except Exception as e:
-        logger.error(f"Budget Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 def get_budgets_status(email: str):
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
         
-        # Smart Query: Joins Categories + Budgets + Transactions (Current Month Only)
+        # 1. Seed Defaults if missing
+        defaults = [('Food', '#EF4444', 'expense'), ('Travel', '#F59E0B', 'expense'), 
+                    ('Rent', '#6366F1', 'expense'), ('Bills', '#10B981', 'expense'),
+                    ('Shopping', '#EC4899', 'expense'), ('Salary', '#10B981', 'income')]
+        for name, color, ctype in defaults:
+            try:
+                cursor.execute("INSERT IGNORE INTO categories (user_email, name, color, type, is_default) VALUES (%s, %s, %s, %s, TRUE)", (email, name, color, ctype))
+            except: pass
+        conn.commit()
+
+        # 2. Smart Query: Categories + Budgets + Spent (Current Month)
         query = """
             SELECT 
                 c.id as category_id, 
                 c.name, 
                 c.icon,
+                c.color,
                 COALESCE(b.amount, 0) as budget_limit,
                 COALESCE(SUM(t.amount), 0) as spent
             FROM categories c
@@ -441,14 +437,13 @@ def get_budgets_status(email: str):
                  AND t.user_email = %s 
                  AND t.type = 'expense'
                  AND DATE_FORMAT(t.date, '%%Y-%%m') = DATE_FORMAT(NOW(), '%%Y-%%m')
-            WHERE c.user_email = %s OR c.user_email IS NULL 
+            WHERE (c.user_email = %s OR c.user_email IS NULL) AND c.type = 'expense'
             GROUP BY c.id
-            HAVING budget_limit > 0 OR spent > 0
         """
         cursor.execute(query, (email, email, email))
         budgets = cursor.fetchall()
         
-        # Calculate Alerts/Percentage
+        # 3. Calculate Alerts/Percentage
         for b in budgets:
             b['percentage'] = (b['spent'] / b['budget_limit'] * 100) if b['budget_limit'] > 0 else 0
             b['is_over'] = b['spent'] > b['budget_limit'] and b['budget_limit'] > 0
@@ -459,13 +454,13 @@ def get_budgets_status(email: str):
         logger.error(f"Budget Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# 4. GET BUDGET HISTORY (Chart)
 @app.get("/budgets/history/{email}")
 def get_budget_history(email: str):
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
         
+        # 1. Fetch Raw Data (Python aggregation fix)
         query = """
             SELECT date, amount
             FROM transactions 
@@ -484,166 +479,39 @@ def get_budget_history(email: str):
         
         conn.close()
 
+        # 3. Process in Python
         history_map = {}
         today = datetime.today()
         
         for i in range(5, -1, -1):
             d = today - timedelta(days=i*30)
-            key = d.strftime('%Y-%m') # Key for sorting: "2024-01"
-            name = d.strftime('%b')   # Name for display: "Jan"
+            key = d.strftime('%Y-%m')
+            name = d.strftime('%b')
             history_map[key] = {"month": name, "total_spent": 0, "budget_limit": total_limit}
 
-        # Sum up the actual transactions
         for t in transactions:
             date_obj = t['date']
             if isinstance(date_obj, str):
                 date_obj = datetime.strptime(date_obj, '%Y-%m-%d')
-            
             key = date_obj.strftime('%Y-%m')
-            
             if key in history_map:
                 history_map[key]['total_spent'] += float(t['amount'])
 
         final_history = sorted(history_map.values(), key=lambda x: list(history_map.keys())[list(history_map.values()).index(x)])
-        
         return list(final_history)
-
     except Exception as e:
         print(f"HISTORY ERROR: {e}") 
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/budgets")
-def set_budget(budget: BudgetSchema):
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        # Insert or Update (Upsert)
-        cursor.execute("""
-            INSERT INTO budgets (user_email, category_id, amount)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE amount = %s
-        """, (budget.user_email, budget.category_id, budget.amount, budget.amount))
-        conn.commit()
-        conn.close()
-        return {"message": "Budget saved"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/goals/{email}")
+def get_goals(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM goals WHERE user_email = %s", (email,))
+    data = cursor.fetchall()
+    conn.close()
+    return data
 
-def update_budget(data: BudgetUpdate):
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        query = "UPDATE categories SET budget_limit = %s WHERE user_email = %s AND name = %s"
-        cursor.execute(query, (data.limit, data.user_email, data.category_name))
-        conn.commit()
-        conn.close()
-        return {"message": "Budget updated"}
-    except Exception as e:
-        logger.error(f"Update Budget Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/analytics/{email}")
-def get_analytics(email: str):
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        
-        cursor.execute("""
-            SELECT c.name, SUM(t.amount) as value 
-            FROM transactions t
-            JOIN categories c ON t.category_id = c.id
-            WHERE t.user_email = %s AND t.type = 'expense'
-            GROUP BY c.name
-        """, (email,))
-        pie_data = cursor.fetchall()
-        
-        cursor.execute("""
-            SELECT 
-                DATE_FORMAT(date, '%b') as name, 
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
-            FROM transactions 
-            WHERE user_email = %s 
-            GROUP BY YEAR(date), MONTH(date), DATE_FORMAT(date, '%b')
-            ORDER BY YEAR(date), MONTH(date)
-            LIMIT 6
-        """, (email,))
-        bar_data = cursor.fetchall()
-        
-        conn.close()
-        return {"pie": pie_data, "bar": bar_data}
-    except Exception as e:
-        logger.error(f"Analytics Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/transactions/all/{email}")
-def get_all_transactions(
-    email: str,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    category_id: Optional[int] = None,
-    min_amount: Optional[float] = None,
-    max_amount: Optional[float] = None,
-    search: Optional[str] = None
-):
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        
-        # Base Query
-        query = """
-            SELECT t.*, c.name as category_name 
-            FROM transactions t 
-            LEFT JOIN categories c ON t.category_id = c.id 
-            WHERE t.user_email = %s
-        """
-        params = [email]
-
-        # 1. Date Range
-        if start_date:
-            query += " AND t.date >= %s"
-            params.append(start_date)
-        if end_date:
-            query += " AND t.date <= %s"
-            params.append(end_date)
-            
-        # 2. Category Filter
-        if category_id:
-            query += " AND t.category_id = %s"
-            params.append(category_id)
-            
-        # 3. Amount Range
-        if min_amount is not None:
-            query += " AND t.amount >= %s"
-            params.append(min_amount)
-        if max_amount is not None:
-            query += " AND t.amount <= %s"
-            params.append(max_amount)
-            
-        # 4. Search Filter
-        if search:
-            search_text = f"%{search.lower()}%"
-
-            search_amount_clean = search.replace(",", "")
-            search_amount = f"%{search_amount_clean}%"
-
-            query += """ AND (
-                LOWER(t.note) LIKE %s 
-                OR t.amount LIKE %s 
-                OR LOWER(t.type) LIKE %s
-            )"""
-            params.extend([search_text, search_amount, search_text])
-
-        query += " ORDER BY t.date DESC"
-
-        cursor.execute(query, params)
-        transactions = cursor.fetchall()
-        conn.close()
-        return transactions
-    except Exception as e:
-        logger.error(f"Filter Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    
 @app.post("/goals")
 def add_goal(goal: GoalCreate):
     conn = get_db()
@@ -671,16 +539,62 @@ def add_money_to_goal(update: GoalUpdate):
     conn.close()
     return {"message": "Money added to goal"}
 
+# ================= DASHBOARD & ANALYTICS =================
+
+@app.get("/dashboard/{email}")
+def get_dashboard(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT type, SUM(amount) as total FROM transactions WHERE user_email = %s GROUP BY type", (email,))
+        totals = cursor.fetchall()
+        
+        cursor.execute("""
+            SELECT t.id, t.amount, t.type, t.date, t.note, t.payment_mode, c.name as category
+            FROM transactions t
+            LEFT JOIN categories c ON t.category_id = c.id
+            WHERE t.user_email = %s 
+            ORDER BY t.date DESC LIMIT 5
+        """, (email,))
+        recent = cursor.fetchall()
+        conn.close()
+        return {"totals": totals, "recent": recent}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/{email}")
+def get_analytics(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT c.name, SUM(t.amount) as value 
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            WHERE t.user_email = %s AND t.type = 'expense'
+            GROUP BY c.name
+        """, (email,))
+        pie_data = cursor.fetchall()
+        
+        cursor.execute("""
+            SELECT DATE_FORMAT(date, '%b') as name, 
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+            FROM transactions WHERE user_email = %s 
+            GROUP BY YEAR(date), MONTH(date), DATE_FORMAT(date, '%b')
+            ORDER BY YEAR(date), MONTH(date) LIMIT 6
+        """, (email,))
+        bar_data = cursor.fetchall()
+        conn.close()
+        return {"pie": pie_data, "bar": bar_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/recurring/{email}")
 def get_recurring(email: str):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT t.*, c.name as category 
-        FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_email = %s AND t.is_recurring = TRUE
-    """, (email,))
+    cursor.execute("SELECT t.*, c.name as category FROM transactions t LEFT JOIN categories c ON t.category_id = c.id WHERE t.user_email = %s AND t.is_recurring = TRUE", (email,))
     data = cursor.fetchall()
     conn.close()
     return data
@@ -699,15 +613,7 @@ def get_daily_income(email: str):
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        # Group income by specific date
-        cursor.execute("""
-            SELECT date, SUM(amount) as total
-            FROM transactions 
-            WHERE user_email = %s AND type = 'income'
-            GROUP BY date
-            ORDER BY date DESC
-            LIMIT 30 -- Last 30 days of activity
-        """, (email,))
+        cursor.execute("SELECT date, SUM(amount) as total FROM transactions WHERE user_email = %s AND type = 'income' GROUP BY date ORDER BY date DESC LIMIT 30", (email,))
         data = cursor.fetchall()
         conn.close()
         return data
@@ -720,20 +626,11 @@ def get_monthly_income(email: str):
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        
-    
         cursor.execute("""
-            SELECT 
-                DATE_FORMAT(MIN(date), '%Y-%m') as month_year,
-                DATE_FORMAT(MIN(date), '%M %Y') as display_name,
-                SUM(amount) as total
-            FROM transactions 
-            WHERE user_email = %s AND type = 'income'
-            GROUP BY YEAR(date), MONTH(date)
-            ORDER BY YEAR(date) DESC, MONTH(date) DESC
-            LIMIT 12
+            SELECT DATE_FORMAT(MIN(date), '%Y-%m') as month_year, DATE_FORMAT(MIN(date), '%M %Y') as display_name, SUM(amount) as total
+            FROM transactions WHERE user_email = %s AND type = 'income'
+            GROUP BY YEAR(date), MONTH(date) ORDER BY YEAR(date) DESC, MONTH(date) DESC LIMIT 12
         """, (email,))
-        
         data = cursor.fetchall()
         conn.close()
         return data
@@ -746,17 +643,11 @@ def get_category_monthly_analytics(email: str):
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        # Fetch expenses grouped by Month and Category
         cursor.execute("""
-            SELECT 
-                DATE_FORMAT(MIN(t.date), '%b %Y') as month,
-                c.name as category,
-                SUM(t.amount) as total
-            FROM transactions t
-            JOIN categories c ON t.category_id = c.id
+            SELECT DATE_FORMAT(MIN(t.date), '%b %Y') as month, c.name as category, SUM(t.amount) as total
+            FROM transactions t JOIN categories c ON t.category_id = c.id
             WHERE t.user_email = %s AND t.type = 'expense'
-            GROUP BY YEAR(t.date), MONTH(t.date), c.name
-            ORDER BY YEAR(t.date), MONTH(t.date)
+            GROUP BY YEAR(t.date), MONTH(t.date), c.name ORDER BY YEAR(t.date), MONTH(t.date)
         """, (email,))
         data = cursor.fetchall()
         conn.close()
@@ -764,3 +655,11 @@ def get_category_monthly_analytics(email: str):
     except Exception as e:
         logger.error(f"Category Monthly Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ================= STARTUP (REQUIRED FOR RENDER) =================
+if __name__ == "__main__":
+    import uvicorn
+    # Render provides PORT, default to 10000 for local dev
+    port = int(os.environ.get("PORT", 10000))
+    # Host MUST be 0.0.0.0
+    uvicorn.run(app, host="0.0.0.0", port=port)
