@@ -452,7 +452,6 @@ def get_analytics(email: str):
 @app.get("/transactions/all/{email}")
 def get_all_transactions(
     email: str,
-    # Add optional query parameters
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     category_id: Optional[int] = None,
@@ -494,11 +493,19 @@ def get_all_transactions(
             query += " AND t.amount <= %s"
             params.append(max_amount)
             
-        # 4. Search (Description or Tags)
+        # 4. Search Filter
         if search:
-            query += " AND (t.note LIKE %s OR t.amount LIKE %s OR t.type LIKE %s)"
-            search_term = f"%{search}%"
-            params.extend([search_term, search_term, search_term])
+            search_text = f"%{search.lower()}%"
+
+            search_amount_clean = search.replace(",", "")
+            search_amount = f"%{search_amount_clean}%"
+
+            query += """ AND (
+                LOWER(t.note) LIKE %s 
+                OR t.amount LIKE %s 
+                OR LOWER(t.type) LIKE %s
+            )"""
+            params.extend([search_text, search_amount, search_text])
 
         query += " ORDER BY t.date DESC"
 
@@ -509,16 +516,7 @@ def get_all_transactions(
     except Exception as e:
         logger.error(f"Filter Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/goals/{email}")
-def get_goals(email: str):
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM goals WHERE user_email = %s", (email,))
-    data = cursor.fetchall()
-    conn.close()
-    return data
-
+    
 @app.post("/goals")
 def add_goal(goal: GoalCreate):
     conn = get_db()
