@@ -30,7 +30,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       <Link
         to={item.to}
         onClick={onClick}
-        // DARK MODE: Text colors and Hover backgrounds
         className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 font-medium group relative overflow-hidden text-stone-500 hover:bg-white hover:text-blue-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400"
         activeProps={{
             className: "!bg-gradient-to-r !from-blue-600 !to-indigo-600 !text-white shadow-lg shadow-blue-500/30 dark:shadow-blue-900/20"
@@ -44,34 +43,30 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    // DARK MODE: Main Background
     <div className="min-h-screen flex bg-[#F3F4F6] dark:bg-slate-950 transition-colors duration-300">
       
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex flex-col w-72 fixed h-full z-30 pl-4 py-4">
-        {/* DARK MODE: Sidebar Background & Border */}
+      <aside className="hidden md:flex flex-col w-72 fixed h-full z-30 pl-4 py-2">
         <div className="h-full bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl shadow-indigo-100/50 flex flex-col dark:bg-slate-900/80 dark:border-slate-800 dark:shadow-slate-900/50">
-            
             {/* Logo Section */}
             <div className="p-8 pb-4 flex items-center gap-3">
                 <div className="p-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 rounded-xl shadow-lg">
                     <img src={icon} className="w-6 h-6" />
                 </div>
                 <div>
-                    {/* DARK MODE: Text Color */}
                     <h1 className="text-xl font-bold text-slate-800 dark:text-white">FinTrack</h1>
                     <p className="text-xs text-blue-500 font-bold uppercase">Premium</p>
                 </div>
             </div>
 
-            <nav className="flex-1 px-4 space-y-2 mt-4">
+            <nav className="flex-1 px-4 space-y-2 mt-2">
               {menuItems.map((item) => (
                 <NavItem key={item.to} item={item} />
               ))}
             </nav>
 
             {/* Bottom Section */}
-            <div className="p-4 mt-auto space-y-3">
+            <div className="p-4 mt-auto space-y-2">
                
                {/* THEME TOGGLE (Desktop) */}
                <button 
