@@ -58,29 +58,23 @@ def init_db():
     try:
         conn = get_db()
         cursor = conn.cursor()
-    
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS budgets (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_email VARCHAR(255) NOT NULL,
-                category_id INT NOT NULL,
-                amount DECIMAL(10, 2) NOT NULL,
-                UNIQUE KEY unique_budget (user_email, category_id)
-            )
-        """)
-        
-        # Goals Table (Ensure this exists)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS goals (
+            CREATE TABLE IF NOT EXISTS categories (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_email VARCHAR(255) NOT NULL,
                 name VARCHAR(255) NOT NULL,
-                target_amount DECIMAL(10, 2) NOT NULL,
-                current_amount DECIMAL(10, 2) DEFAULT 0,
-                deadline DATE
+                color VARCHAR(50) DEFAULT '#000000',
+                type VARCHAR(50) NOT NULL,
+                is_default BOOLEAN DEFAULT FALSE
             )
         """)
-        
+
+        try:
+            cursor.execute("ALTER TABLE categories ADD COLUMN icon VARCHAR(50) DEFAULT '🏷️'")
+            conn.commit()
+        except:
+            pass 
+
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
@@ -122,6 +116,7 @@ class CategoryCreate(BaseModel):
     name: str
     color: str
     type: str # 'income' or 'expense'
+    icon: str
 
 class GoalCreate(BaseModel):
     user_email: str
@@ -368,7 +363,9 @@ def add_category(cat: CategoryCreate):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO categories (user_email, name, color, type, is_default) VALUES (%s, %s, %s, %s, FALSE)", (cat.user_email, cat.name, cat.color, cat.type))
+        cursor.execute(
+            "INSERT INTO categories (user_email, name, color, type, icon, is_default) VALUES (%s, %s, %s, %s, %s, FALSE)", (cat.user_email, cat.name, cat.color, cat.type, cat.icon)
+        )
         conn.commit()
         return {"message": "Category created"}
     except Exception as e:
@@ -411,23 +408,12 @@ def get_budgets_status(email: str):
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        
-        # 1. Seed Defaults
-        defaults = [('Food', '#EF4444', 'expense'), ('Travel', '#F59E0B', 'expense'), 
-                    ('Rent', '#6366F1', 'expense'), ('Bills', '#10B981', 'expense'),
-                    ('Shopping', '#EC4899', 'expense'), ('Salary', '#10B981', 'income')]
-        for name, color, ctype in defaults:
-            try:
-                cursor.execute("INSERT IGNORE INTO categories (user_email, name, color, type, is_default) VALUES (%s, %s, %s, %s, TRUE)", (email, name, color, ctype))
-            except: pass
-        conn.commit()
-
-        # 2. Smart Query: Categories + Budgets + Spent (Current Month)
         query = """
             SELECT 
                 c.id as category_id, 
                 c.name, 
                 c.color,
+                c.icon,
                 COALESCE(b.amount, 0) as budget_limit,
                 COALESCE(SUM(t.amount), 0) as spent
             FROM categories c
@@ -437,29 +423,21 @@ def get_budgets_status(email: str):
                  AND t.type = 'expense'
                  AND DATE_FORMAT(t.date, '%%Y-%%m') = DATE_FORMAT(NOW(), '%%Y-%%m')
             WHERE (c.user_email = %s OR c.user_email IS NULL) AND c.type = 'expense'
-            GROUP BY c.id, c.name, c.color, b.amount
+            GROUP BY c.id, c.name, c.color, c.icon, b.amount
         """
         cursor.execute(query, (email, email, email))
         budgets = cursor.fetchall()
-        
-        # 3. Add Icons & Calculate Stats in Python
-        icon_map = {
-            'Food': '🍔', 'Travel': '✈️', 'Rent': '🏠', 'Bills': '🧾', 
-            'Shopping': '🛍️', 'Salary': '💰', 'Health': '🏥', 'Entertainment': '🎬'
-        }
 
         for b in budgets:
-            # Assign icon based on name (default to Tag icon)
-            b['icon'] = icon_map.get(b['name'], '🏷️')
-            
             b['percentage'] = (b['spent'] / b['budget_limit'] * 100) if b['budget_limit'] > 0 else 0
             b['is_over'] = b['spent'] > b['budget_limit'] and b['budget_limit'] > 0
-            
+
         conn.close()
         return budgets
     except Exception as e:
         logger.error(f"Budget Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/budgets/history/{email}")
 def get_budget_history(email: str):
     try:
