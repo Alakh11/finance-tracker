@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,date
 import random
 import logging
 
@@ -163,6 +163,8 @@ class DebtCreate(BaseModel):
     date: str
     due_date: Optional[str] = None
     reason: str
+    interest_rate: Optional[float] = 0.0
+    interest_period: Optional[str] = 'Monthly'
 
 class RepaymentCreate(BaseModel):
     debt_id: int
@@ -170,6 +172,9 @@ class RepaymentCreate(BaseModel):
     date: str
     mode: str
     
+class MarkPaidRequest(BaseModel):
+    debt_id: int
+    date: str
 
 # --- Helper Functions ---
 def create_access_token(data: dict):
@@ -181,6 +186,29 @@ def send_otp_mock(contact: str):
     otp = str(random.randint(100000, 999999))
     logger.info(f"🔑 MOCK OTP for {contact}: {otp}") # View this in Render Logs!
     return otp
+
+def calculate_interest(principal, rate, period, start_date_str):
+    if not rate or rate == 0:
+        return 0.0
+    
+    start_date = datetime.strptime(str(start_date_str), "%Y-%m-%d").date()
+    today = date.today()
+    days_passed = (today - start_date).days
+    
+    if days_passed <= 0:
+        return 0.0
+
+    interest = 0.0
+    if period == 'Daily':
+        interest = (principal * rate * days_passed) / 100
+    elif period == 'Monthly':
+        months = days_passed / 30.44
+        interest = (principal * rate * months) / 100
+    elif period == 'Yearly':
+        years = days_passed / 365.25
+        interest = (principal * rate * years) / 100
+        
+    return round(interest, 2)
 
 @app.api_route("/", methods=["GET", "HEAD"])
 def health_check():
@@ -969,13 +997,11 @@ def get_borrowers(email: str):
 def lend_money(debt: DebtCreate):
     conn = get_db()
     cursor = conn.cursor()
-    
     try:
-        # Step A: Get or Create Borrower
         borrower_id = debt.borrower_id
         if not borrower_id and debt.new_borrower_name:
             cursor.execute(
-                "INSERT INTO borrowers (user_email, name) VALUES (%s, %s)", 
+                "INSERT INTO borrowers (user_email, name) VALUES (%s, %s)",
                 (debt.user_email, debt.new_borrower_name)
             )
             borrower_id = cursor.lastrowid
@@ -983,13 +1009,11 @@ def lend_money(debt: DebtCreate):
         if not borrower_id:
             raise HTTPException(status_code=400, detail="Borrower ID or Name required")
 
-        # Step B: Insert Debt Record
         cursor.execute("""
-            INSERT INTO debts (borrower_id, amount, date, due_date, reason, status)
-            VALUES (%s, %s, %s, %s, %s, 'Pending')
-        """, (borrower_id, debt.amount, debt.date, debt.due_date, debt.reason))
-        
-        # Step C: Update Borrower Totals
+            INSERT INTO debts (borrower_id, amount, date, due_date, reason, status, interest_rate, interest_period)
+            VALUES (%s, %s, %s, %s, %s, 'Pending', %s, %s)
+        """, (borrower_id, debt.amount, debt.date, debt.due_date, debt.reason, debt.interest_rate, debt.interest_period))
+
         cursor.execute("""
             UPDATE borrowers 
             SET total_lent = total_lent + %s, 
@@ -1065,8 +1089,34 @@ def get_ledger(borrower_id: int):
     cursor.execute("SELECT * FROM debts WHERE borrower_id = %s ORDER BY date DESC", (borrower_id,))
     debts = cursor.fetchall()
     
-    # Get all repayments
-    # We join debts to filter by borrower_id indirectly
+    # Process Debts for Interest & Overdue Status
+    total_interest_accrued = 0
+    risk_flags = []
+    
+    for d in debts:
+        # 1. Interest Calculation
+        outstanding_principal = float(d['amount']) - float(d['amount_repaid'])
+        if outstanding_principal > 0 and d['interest_rate'] > 0:
+            interest = calculate_interest(outstanding_principal, float(d['interest_rate']), d['interest_period'], d['date'])
+            d['accrued_interest'] = interest
+            d['total_due'] = outstanding_principal + interest
+            total_interest_accrued += interest
+        else:
+            d['accrued_interest'] = 0
+            d['total_due'] = outstanding_principal
+
+        # 2. Overdue Logic
+        if d['status'] != 'Paid' and d['due_date']:
+            due_date = datetime.strptime(str(d['due_date']), "%Y-%m-%d").date()
+            if date.today() > due_date:
+                d['is_overdue'] = True
+                risk_flags.append(f"Overdue: {d['reason']}")
+            else:
+                d['is_overdue'] = False
+        else:
+            d['is_overdue'] = False
+
+    # Get Repayments
     cursor.execute("""
         SELECT r.*, d.reason as loan_reason 
         FROM repayments r
@@ -1075,9 +1125,110 @@ def get_ledger(borrower_id: int):
         ORDER BY r.date DESC
     """, (borrower_id,))
     repayments = cursor.fetchall()
+
+    # Get Borrower basic info
+    cursor.execute("SELECT * FROM borrowers WHERE id = %s", (borrower_id,))
+    borrower = cursor.fetchone()
     
+    # Add High Outstanding Risk
+    if float(borrower['current_balance']) > 10000: 
+        risk_flags.append("High Outstanding Balance")
+        
     conn.close()
-    return {"borrower": borrower, "debts": debts, "repayments": repayments}
+    return {
+        "borrower": borrower, 
+        "debts": debts, 
+        "repayments": repayments, 
+        "total_interest": total_interest_accrued,
+        "risks": list(set(risk_flags)) # Unique risks
+    }
+
+@app.post("/debts/mark-paid")
+def mark_fully_paid(req: MarkPaidRequest):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Get Debt Info
+        cursor.execute("SELECT * FROM debts WHERE id = %s", (req.debt_id,))
+        debt = cursor.fetchone()
+        remaining = float(debt['amount']) - float(debt['amount_repaid'])
+        
+        if remaining <= 0:
+            return {"message": "Already paid"}
+
+        # Create Repayment Entry
+        cursor.execute("""
+            INSERT INTO repayments (debt_id, amount, date, mode)
+            VALUES (%s, %s, %s, 'Cash')
+        """, (req.debt_id, remaining, req.date))
+        
+        # Update Debt Status
+        cursor.execute("UPDATE debts SET amount_repaid = amount, status = 'Paid' WHERE id = %s", (req.debt_id,))
+        
+        # Update Borrower Balance
+        cursor.execute("""
+            UPDATE borrowers SET total_repaid = total_repaid + %s, current_balance = current_balance - %s, last_activity = NOW()
+            WHERE id = %s
+        """, (remaining, remaining, debt['borrower_id']))
+        
+        conn.commit()
+        return {"message": "Marked as paid"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/debts/{id}")
+def delete_debt(id: int):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Get Debt Info to update borrower totals correctly
+        cursor.execute("SELECT * FROM debts WHERE id = %s", (id,))
+        debt = cursor.fetchone()
+        if not debt:
+            raise HTTPException(status_code=404, detail="Debt not found")
+            
+        borrower_id = debt['borrower_id']
+        amount_lent = float(debt['amount'])
+        amount_repaid = float(debt['amount_repaid'])
+        balance_to_reduce = amount_lent - amount_repaid
+        
+        # 2. Delete Debt (Cascades to repayments automatically via SQL Foreign Key)
+        cursor.execute("DELETE FROM debts WHERE id = %s", (id,))
+        
+        # 3. Update Borrower Stats
+        cursor.execute("""
+            UPDATE borrowers 
+            SET total_lent = total_lent - %s,
+                total_repaid = total_repaid - %s,
+                current_balance = current_balance - %s
+            WHERE id = %s
+        """, (amount_lent, amount_repaid, balance_to_reduce, borrower_id))
+        
+        conn.commit()
+        return {"message": "Debt deleted"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/debts/borrowers/{id}")
+def delete_borrower(id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Deleting borrower will cascade delete all debts and repayments
+        cursor.execute("DELETE FROM borrowers WHERE id = %s", (id,))
+        conn.commit()
+        return {"message": "Borrower deleted"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 # ================= STARTUP (REQUIRED FOR RENDER) =================
 if __name__ == "__main__":
