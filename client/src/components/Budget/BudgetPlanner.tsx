@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useLoaderData, useRouter } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
-import BudgetOverview from './BudgetOverview';
-import BudgetForm from './BudgetForm';
-import BudgetList from './BudgetList';
-import BudgetChart from './BudgetChart';
+import BudgetOverview from './components/BudgetOverview';
+import BudgetForm from './components/BudgetForm';
+import BudgetList from './components/BudgetList';
+import BudgetChart from './components/BudgetChart';
 
 export default function BudgetPlanner() {
   const router = useRouter();
