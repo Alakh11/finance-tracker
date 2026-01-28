@@ -102,24 +102,34 @@ def create_admin_user():
         cursor = conn.cursor(dictionary=True)
         
         admin_email = "alakhchaturvedi2002@gmail.com"
+        admin_pass = "Admin@2002"
+        hashed_pw = pwd_context.hash(admin_pass)
         cursor.execute("SELECT * FROM users WHERE email = %s", (admin_email,))
-        
-        if not cursor.fetchone():
-            admin_pass = "Admin@2002"
-            hashed_pw = pwd_context.hash(admin_pass)
-            
+        existing_user = cursor.fetchone()
+        if existing_user:
             cursor.execute("""
-                INSERT INTO users (name, email, password_hash, is_verified, mobile) 
-                VALUES (%s, %s, %s, TRUE, %s)
-            """, ("Alakh Admin", admin_email, hashed_pw, "0000000000"))
-            
-            conn.commit()
-            logger.info(f"✅ Admin Account Created: {admin_email}")
-        
-        conn.close()
-    except Exception as e:
-        logger.error(f"Admin Creation Error: {e}")
+                UPDATE users 
+                SET password_hash = %s, is_verified = TRUE 
+                WHERE email = %s
+            """, (hashed_pw, admin_email))
+            logger.info(f"🔄 Admin Password Reset for: {admin_email}")
+        else:
+            cursor.execute("""
 
+                INSERT INTO users (name, email, password_hash, is_verified, mobile) 
+
+                VALUES (%s, %s, %s, TRUE, %s)
+
+            """, ("Alakh Admin", admin_email, hashed_pw, "0000000000"))
+
+            logger.info(f"✅ Admin Account Created: {admin_email}")
+        conn.commit()
+
+        conn.close()
+
+    except Exception as e:
+
+        logger.error(f"Admin Creation Error: {e}")
 
 # --- 3. Update Admin Endpoint to use Security ---
 @app.get("/admin/users")
