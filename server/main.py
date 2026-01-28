@@ -578,7 +578,23 @@ def get_analytics(email: str):
 def get_recurring(email: str):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT t.*, c.name as category FROM transactions t LEFT JOIN categories c ON t.category_id = c.id WHERE t.user_email = %s AND t.is_recurring = TRUE", (email,))
+    query = """
+        SELECT 
+            rt.*, 
+            c.name as category,
+            c.icon as category_icon,
+            (
+                SELECT MAX(t.date)
+                FROM transactions t
+                WHERE t.user_email = rt.user_email 
+                AND t.note = rt.note
+                AND t.id != rt.id 
+            ) as last_paid
+        FROM transactions rt
+        LEFT JOIN categories c ON rt.category_id = c.id
+        WHERE rt.user_email = %s AND rt.is_recurring = TRUE
+    """
+    cursor.execute(query, (email,))
     data = cursor.fetchall()
     conn.close()
     return data
