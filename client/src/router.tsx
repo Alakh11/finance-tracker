@@ -14,10 +14,11 @@ import Recurring from './components/Recurring/Recurring';
 import BudgetPlanner from './components/Budget/BudgetPlanner';
 import Goals from './components/Goals/Goals';
 import Analytics from './components/Analytics/Analytics';
-import CategoryManager from './components/CategoryManager/CategoryManager';
+import CategoryManager from './components/CategoryManager/CategoryManager'; 
 import type { User } from './types';
 import NotFound from './components/Error/NotFound';
 import ErrorPage from './components/Error/ErrorPage';
+import LoanTracker from './components/Loans/LoanTracker';
 
 // Context for the router (User is required)
 interface RouterContext {
@@ -45,11 +46,20 @@ const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'dashboard',
   loader: async ({ context }) => {
-    const [dashboard, categories] = await Promise.all([
+    // 1. Fetch all data in parallel
+    const [dashboard, categories, prediction, insights] = await Promise.all([
         axios.get(`${API_URL}/dashboard/${context.user.email}`),
-        axios.get(`${API_URL}/categories/${context.user.email}`)
+        axios.get(`${API_URL}/categories/${context.user.email}`),
+        axios.get(`${API_URL}/predict/${context.user.email}`),
+        axios.get(`${API_URL}/insights/${context.user.email}`)
     ]);
-    return { ...dashboard.data, categories: categories.data };
+
+    return { 
+        ...dashboard.data, 
+        categories: categories.data, 
+        prediction: prediction.data,
+        insights: insights.data
+    };
   },
   component: Dashboard,
 });
@@ -101,7 +111,7 @@ const goalsRoute = createRoute({
   component: Goals,
 });
 
-// --- 5. Recurring Route ---
+// --- 6. Recurring Route ---
 const recurringRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'recurring',
@@ -112,7 +122,7 @@ const recurringRoute = createRoute({
   component: Recurring,
 });
 
-// --- 6. Analytics Route ---
+// --- 7. Analytics Route ---
 const analyticsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'analytics',
@@ -135,7 +145,7 @@ const analyticsRoute = createRoute({
   component: Analytics,
 });
 
-// --- 7. Categories Route ---
+// --- 8. Categories Route ---
 const categoriesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'categories',
@@ -146,7 +156,18 @@ const categoriesRoute = createRoute({
   component: CategoryManager,
 });
 
-// --- 8. Index Redirect ---
+// --- 9. Loans Route ---
+const loansRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'loans',
+  loader: async ({ context }) => {
+    const res = await axios.get(`${API_URL}/loans/${context.user.email}`);
+    return res.data;
+  },
+  component: LoanTracker,
+});
+
+// --- 10. Index & 404 ---
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
@@ -154,6 +175,7 @@ const indexRoute = createRoute({
     throw redirect({ to: '/dashboard' });
   },
 });
+
 const notFoundRoute = new NotFoundRoute({
   getParentRoute: () => rootRoute,
   component: NotFound,
@@ -169,6 +191,7 @@ const routeTree = rootRoute.addChildren([
   recurringRoute,
   analyticsRoute,
   categoriesRoute,
+  loansRoute,
 ]);
 
 export const router = createRouter({
