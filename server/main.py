@@ -11,7 +11,9 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta,date
 import random
 import logging
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
 # Setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -143,6 +145,7 @@ def get_all_users(admin_email: str = Depends(require_admin)): # <--- Added Depen
     except Exception as e:
         logger.error(f"Admin Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 # --- Auth Models ---
 class UserRegister(BaseModel):
     name: str
