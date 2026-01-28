@@ -74,33 +74,33 @@ export default function Goals() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pb-20">
        <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold text-stone-800">Savings Goals</h2>
-            <p className="text-stone-500">Visualize and track your financial dreams.</p>
+            <h2 className="text-3xl font-bold text-stone-800 dark:text-white">Savings Goals</h2>
+            <p className="text-stone-500 dark:text-slate-400">Visualize and track your financial dreams.</p>
           </div>
           <button 
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 bg-stone-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-stone-800 transition shadow-lg shadow-stone-200"
+            className="flex items-center gap-2 bg-stone-900 dark:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-stone-800 dark:hover:bg-blue-500 transition shadow-lg shadow-stone-200 dark:shadow-none"
           >
              <Plus className="w-4 h-4" /> New Goal
           </button>
        </div>
 
        {showForm && (
-           <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-stone-100 border border-stone-100 flex flex-col md:flex-row gap-4 items-end animate-in fade-in slide-in-from-top-4">
+           <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl shadow-stone-100 dark:shadow-none border border-stone-100 dark:border-slate-800 flex flex-col md:flex-row gap-4 items-end animate-in fade-in slide-in-from-top-4">
                <div className="flex-1 w-full">
-                   <label className="text-xs font-bold text-stone-400 uppercase ml-1">Goal Name</label>
-                   <input className="w-full mt-1 p-3 bg-stone-50 rounded-xl outline-none font-bold text-stone-700" placeholder="e.g. New Laptop" value={newGoal.name} onChange={e=>setNewGoal({...newGoal, name: e.target.value})} />
+                   <label className="text-xs font-bold text-stone-400 dark:text-slate-500 uppercase ml-1">Goal Name</label>
+                   <input className="w-full mt-1 p-3 bg-stone-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-stone-700 dark:text-white border border-transparent focus:border-blue-500" placeholder="e.g. New Laptop" value={newGoal.name} onChange={e=>setNewGoal({...newGoal, name: e.target.value})} />
                </div>
                <div className="flex-1 w-full">
-                   <label className="text-xs font-bold text-stone-400 uppercase ml-1">Target Amount</label>
-                   <input className="w-full mt-1 p-3 bg-stone-50 rounded-xl outline-none font-bold text-stone-700" type="number" placeholder="50000" value={newGoal.target} onChange={e=>setNewGoal({...newGoal, target: e.target.value})} />
+                   <label className="text-xs font-bold text-stone-400 dark:text-slate-500 uppercase ml-1">Target Amount</label>
+                   <input className="w-full mt-1 p-3 bg-stone-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-stone-700 dark:text-white border border-transparent focus:border-blue-500" type="number" placeholder="50000" value={newGoal.target} onChange={e=>setNewGoal({...newGoal, target: e.target.value})} />
                </div>
                <div className="flex-1 w-full">
-                   <label className="text-xs font-bold text-stone-400 uppercase ml-1">Deadline (Optional)</label>
-                   <input className="w-full mt-1 p-3 bg-stone-50 rounded-xl outline-none font-bold text-stone-500" type="date" value={newGoal.deadline} onChange={e=>setNewGoal({...newGoal, deadline: e.target.value})} />
+                   <label className="text-xs font-bold text-stone-400 dark:text-slate-500 uppercase ml-1">Deadline (Optional)</label>
+                   <input className="w-full mt-1 p-3 bg-stone-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-stone-500 dark:text-slate-400 border border-transparent focus:border-blue-500" type="date" value={newGoal.deadline} onChange={e=>setNewGoal({...newGoal, deadline: e.target.value})} />
                </div>
                <button onClick={createGoal} className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold w-full md:w-auto hover:bg-blue-700 transition">Create</button>
            </div>
@@ -114,30 +114,34 @@ export default function Goals() {
                const isCompleted = g.current_amount >= g.target_amount;
 
                return (
-                   <div key={g.id} className="bg-white p-6 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-50 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+                   <div key={g.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-50 dark:border-slate-800 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300">
                        
                        {/* Header */}
                        <div className="flex justify-between items-start mb-6">
-                           <div className={`p-3.5 rounded-2xl transition-colors ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-100 text-stone-400 group-hover:bg-amber-100 group-hover:text-amber-600'}`}>
+                           <div className={`p-3.5 rounded-2xl transition-colors ${
+                               isCompleted 
+                               ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                               : 'bg-stone-100 text-stone-400 dark:bg-slate-800 dark:text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600 dark:group-hover:bg-amber-900/30 dark:group-hover:text-amber-400'
+                           }`}>
                                <Trophy className="w-7 h-7" />
                            </div>
-                           <button onClick={() => deleteGoal(g.id)} className="text-stone-300 hover:text-rose-500 p-2 hover:bg-rose-50 rounded-full transition"><Trash2 size={18}/></button>
+                           <button onClick={() => deleteGoal(g.id)} className="text-stone-300 hover:text-rose-500 dark:text-slate-600 dark:hover:text-rose-400 p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-full transition"><Trash2 size={18}/></button>
                        </div>
 
                        {/* Title & Amount */}
                        <div className="mb-4">
                            <div className="flex justify-between items-start">
-                                <h3 className="text-xl font-bold text-stone-800 line-clamp-1">{g.name}</h3>
-                                {daysLeft && !isCompleted && <span className="text-xs font-bold bg-stone-100 text-stone-500 px-2 py-1 rounded-lg whitespace-nowrap">{daysLeft}</span>}
+                                <h3 className="text-xl font-bold text-stone-800 dark:text-white line-clamp-1">{g.name}</h3>
+                                {daysLeft && !isCompleted && <span className="text-xs font-bold bg-stone-100 dark:bg-slate-800 text-stone-500 dark:text-slate-400 px-2 py-1 rounded-lg whitespace-nowrap">{daysLeft}</span>}
                            </div>
                            <div className="flex items-baseline gap-1 mt-1">
-                                <span className="text-3xl font-extrabold text-stone-800">₹{g.current_amount.toLocaleString()}</span>
-                                <span className="text-stone-400 font-medium">/ {g.target_amount.toLocaleString()}</span>
+                                <span className="text-3xl font-extrabold text-stone-800 dark:text-white">₹{g.current_amount.toLocaleString()}</span>
+                                <span className="text-stone-400 dark:text-slate-500 font-medium">/ {g.target_amount.toLocaleString()}</span>
                            </div>
                        </div>
 
                        {/* Progress Bar */}
-                       <div className="w-full bg-stone-100 h-4 rounded-full overflow-hidden mb-4">
+                       <div className="w-full bg-stone-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden mb-4">
                            <div 
                                 className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}`} 
                                 style={{ width: `${progress}%` }}
@@ -146,7 +150,11 @@ export default function Goals() {
 
                        {/* Insight / Suggestion */}
                        {suggestion && (
-                           <div className={`flex items-center gap-2 text-xs font-bold mb-6 ${isCompleted ? 'text-emerald-600 bg-emerald-50' : 'text-blue-600 bg-blue-50'} p-2.5 rounded-xl`}>
+                           <div className={`flex items-center gap-2 text-xs font-bold mb-6 ${
+                               isCompleted 
+                               ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400' 
+                               : 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+                           } p-2.5 rounded-xl`}>
                                <TrendingUp className="w-4 h-4" />
                                {suggestion}
                            </div>
@@ -156,13 +164,13 @@ export default function Goals() {
                        <div className="grid grid-cols-2 gap-3">
                             <button 
                                 onClick={() => updateMoney(g.id, 'withdraw')} 
-                                className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-stone-50 text-stone-600 hover:bg-stone-100 transition"
+                                className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-stone-50 dark:bg-slate-800 text-stone-600 dark:text-slate-300 hover:bg-stone-100 dark:hover:bg-slate-700 transition"
                             >
                                 <Minus size={16} /> Withdraw
                             </button>
                             <button 
                                 onClick={() => updateMoney(g.id, 'add')} 
-                                className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-stone-900 text-white hover:bg-stone-800 transition shadow-lg shadow-stone-200"
+                                className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-stone-900 dark:bg-blue-600 text-white hover:bg-stone-800 dark:hover:bg-blue-500 transition shadow-lg shadow-stone-200 dark:shadow-none"
                             >
                                 <Plus size={16} /> Add Money
                             </button>
