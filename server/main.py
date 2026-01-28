@@ -394,7 +394,8 @@ def delete_category(id: int):
         return {"message": "Category deleted"}
     finally:
         conn.close()
-
+        
+@app.delete("/categories/{id}")
 def update_category(id: int, cat: CategoryUpdate):
     conn = get_db()
     cursor = conn.cursor()
