@@ -65,6 +65,7 @@ export default function Dashboard() {
     amount: '',
     type: 'expense',
     category: '',
+    payment_mode: 'UPI', 
     note: '',
     date: new Date().toISOString().split('T')[0],
     is_recurring: false
@@ -89,14 +90,14 @@ export default function Dashboard() {
         amount: parseFloat(newTx.amount),
         type: newTx.type,
         category: newTx.category,
-        payment_mode: "UPI",
+        payment_mode: newTx.payment_mode,
         date: newTx.date,
         note: newTx.note,
         is_recurring: newTx.is_recurring
       });
       
       // Reset Form
-      setNewTx({ ...newTx, amount: '', note: '', category: '' });
+      setNewTx({ ...newTx, amount: '', note: '', category: '', payment_mode: 'UPI' });
       
       // 5. Instantly Refresh Data
       router.invalidate(); 
@@ -131,7 +132,6 @@ export default function Dashboard() {
                     <Sparkles className="w-4 h-4 text-emerald-400" />
                     <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest">Expense Prediction</h3>
                 </div>
-                {/* FIX: Used 'prediction' instead of 'predictData' */}
                 <p className="text-4xl font-black mb-3">₹{prediction?.predicted_spend?.toLocaleString() || '0'}</p>
                 <p className="text-sm text-slate-300 leading-relaxed max-w-[80%]">
                     Based on your spending habits, this is your expected expense for next month.
@@ -141,7 +141,6 @@ export default function Dashboard() {
 
           {/* Smart Alerts */}
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col gap-3 justify-center">
-              {/* FIX: Used 'insights' instead of 'insightsData' */}
               {insights?.length > 0 ? (
                   insights.map((insight: any, i: number) => (
                     <div key={i} className={`p-4 rounded-2xl border flex items-center gap-4 ${
@@ -208,6 +207,21 @@ export default function Dashboard() {
                  value={newTx.amount}
                  onChange={e => setNewTx({ ...newTx, amount: e.target.value })}
                />
+            </div>
+               
+            {/* Payment Mode */}
+            <div>
+                   <label className="text-xs font-bold text-slate-400 uppercase ml-1">Payment Mode</label>
+                   <select 
+                      value={newTx.payment_mode} 
+                      onChange={e => setNewTx({ ...newTx, payment_mode: e.target.value })}
+                      className="w-full mt-1 p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
+                   >
+                      <option value="UPI">UPI</option>
+                      <option value="Card">Card</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Net Banking">Net Banking</option>
+                   </select>
             </div>
             
             {/* Category Dropdown */}

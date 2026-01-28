@@ -41,7 +41,7 @@ export default function Recurring() {
             payment_mode: tx.payment_mode || "Card",
             date: new Date().toISOString().split('T')[0],
             note: tx.note,
-            is_recurring: false // Ensure this doesn't create a duplicate rule
+            is_recurring: true
         });
         
         setTimeout(() => {
