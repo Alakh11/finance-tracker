@@ -1,3 +1,4 @@
+from fastapi.security import OAuth2PasswordBearer
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
@@ -10,7 +11,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta,date
 import random
 import logging
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 # Setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,6 +52,21 @@ def get_db():
     except Exception as e:
         logger.error(f"DB Error: {e}")
         raise HTTPException(status_code=500, detail="Database Connection Failed")
+    
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        return email
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+def require_admin(email: str = Depends(get_current_user)):
+    if email != "alakhchaturvedi2002@gmail.com":
+        raise HTTPException(status_code=403, detail="Access Forbidden: Admins Only")
+    return email
 
 # --- Initialize Tables on Startup ---
 @app.on_event("startup")
@@ -77,6 +93,56 @@ def init_db():
     except Exception as e:
         logger.error(f"Init DB Error: {e}")
 
+@app.on_event("startup")
+def create_admin_user():
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        admin_email = "alakhchaturvedi2002@gmail.com"
+        cursor.execute("SELECT * FROM users WHERE email = %s", (admin_email,))
+        
+        if not cursor.fetchone():
+            admin_pass = "Admin@2002"
+            hashed_pw = pwd_context.hash(admin_pass)
+            
+            cursor.execute("""
+                INSERT INTO users (name, email, password_hash, is_verified, mobile) 
+                VALUES (%s, %s, %s, TRUE, %s)
+            """, ("Alakh Admin", admin_email, hashed_pw, "0000000000"))
+            
+            conn.commit()
+            logger.info(f"✅ Admin Account Created: {admin_email}")
+        
+        conn.close()
+    except Exception as e:
+        logger.error(f"Admin Creation Error: {e}")
+
+
+# --- 3. Update Admin Endpoint to use Security ---
+@app.get("/admin/users")
+def get_all_users(admin_email: str = Depends(require_admin)): # <--- Added Dependency
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id, name, email, mobile, is_verified, created_at, profile_pic 
+            FROM users 
+            ORDER BY created_at DESC
+        """)
+        users = cursor.fetchall()
+        
+        cursor.execute("SELECT COUNT(*) as count FROM users")
+        total_users = cursor.fetchone()['count']
+        
+        cursor.execute("SELECT COUNT(*) as count FROM transactions")
+        total_tx = cursor.fetchone()['count']
+        
+        conn.close()
+        return {"users": users, "stats": {"total_users": total_users, "total_transactions": total_tx}}
+    except Exception as e:
+        logger.error(f"Admin Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 # --- Auth Models ---
 class UserRegister(BaseModel):
     name: str
@@ -1293,6 +1359,33 @@ def delete_borrower(id: int):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+# --- ADMIN ENDPOINTS ---
+
+@app.get("/admin/users")
+def get_all_users():
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id, name, email, mobile, is_verified, created_at, profile_pic 
+            FROM users 
+            ORDER BY created_at DESC
+        """)
+        users = cursor.fetchall()
+        
+        # Get total stats for the dashboard
+        cursor.execute("SELECT COUNT(*) as count FROM users")
+        total_users = cursor.fetchone()['count']
+        
+        cursor.execute("SELECT COUNT(*) as count FROM transactions")
+        total_tx = cursor.fetchone()['count']
+        
+        conn.close()
+        return {"users": users, "stats": {"total_users": total_users, "total_transactions": total_tx}}
+    except Exception as e:
+        logger.error(f"Admin Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ================= STARTUP (REQUIRED FOR RENDER) =================
 if __name__ == "__main__":

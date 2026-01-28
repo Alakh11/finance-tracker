@@ -20,6 +20,7 @@ import NotFound from './components/Error/NotFound';
 import ErrorPage from './components/Error/ErrorPage';
 import LoanTracker from './components/Loans/LoanTracker';
 import Debts from './components/Debts/Debts';
+import AdminPanel from './components/Admin/AdminPanel';
 
 // Context for the router (User is required)
 interface RouterContext {
@@ -194,11 +195,31 @@ const indexRoute = createRoute({
     throw redirect({ to: '/dashboard' });
   },
 });
+// --- 12. Admin Route ---
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin',
+  beforeLoad: ({ context }) => {
+    // 1. Strict Frontend Guard
+    if (context.user.email !== "alakhchaturvedi2002@gmail.com") {
+      throw redirect({ to: '/dashboard' });
+    }
+  },
+  loader: async () => {
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` } 
+    });
+    return res.data;
+  },
+  component: AdminPanel,
+});
 
 const notFoundRoute = new NotFoundRoute({
   getParentRoute: () => rootRoute,
   component: NotFound,
 });
+
 
 // --- Assemble Route Tree ---
 const routeTree = rootRoute.addChildren([
@@ -212,6 +233,7 @@ const routeTree = rootRoute.addChildren([
   categoriesRoute,
   loansRoute,
   debtsRoute,
+  adminRoute,
 ]);
 
 export const router = createRouter({

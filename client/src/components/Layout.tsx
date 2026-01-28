@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useRouter } from '@tanstack/react-router';
 import { 
-  LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, 
+  LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, Shield, 
   Repeat, Settings, ChevronRight, Trophy, Sun, Moon, ReceiptIndianRupee, HandCoins
 } from 'lucide-react';
 import icon from '../assets/iconNew.png';
@@ -13,9 +13,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   
   const router = useRouter();
   const { user, handleLogout } = router.options.context; 
+  const ADMIN_EMAIL = "alakhchaturvedi2002@gmail.com";
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   const menuItems = [
     { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+    ...(isAdmin ? [{ to: '/admin', label: 'Admin Panel', icon: Shield }] : []),
     { to: '/transactions', label: 'Transactions', icon: Wallet },
     { to: '/recurring', label: 'Recurring Bills', icon: Repeat },
     { to: '/budget', label: 'Budgets', icon: Target },
