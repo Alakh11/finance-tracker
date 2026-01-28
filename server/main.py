@@ -96,6 +96,11 @@ class GoogleAuth(BaseModel):
     email: str
     name: str
     picture: Optional[str] = None
+
+class ResetPassword(BaseModel):
+    contact: str
+    name: str
+    new_password: str
 # --- Data Models ---
 class TransactionCreate(BaseModel):
     user_email: str
@@ -349,6 +354,39 @@ def google_login(data: GoogleAuth):
     except Exception as e:
         logger.error(f"Google Login Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.post("/auth/reset-password")
+def reset_password(data: ResetPassword):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        is_email = "@" in data.contact
+        field = "email" if is_email else "mobile"
+        
+        cursor.execute(
+            f"SELECT id FROM users WHERE {field} = %s AND LOWER(name) = LOWER(%s)", 
+            (data.contact, data.name)
+        )
+        user = cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=400, detail="Details do not match any account.")
+            
+        # 3. Update Password
+        new_hash = pwd_context.hash(data.new_password)
+        cursor.execute(f"UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user['id']))
+        conn.commit()
+        
+        return {"message": "Password reset successfully. You can now login."}
+
+    except Exception as e:
+        conn.rollback()
+        if isinstance(e, HTTPException):
+            raise e
+        logger.error(f"Reset Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
     finally:
         conn.close()
 
