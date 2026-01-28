@@ -59,21 +59,17 @@ def init_db():
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS categories (
+            CREATE TABLE IF NOT EXISTS loans (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_email VARCHAR(255) NOT NULL,
                 name VARCHAR(255) NOT NULL,
-                color VARCHAR(50) DEFAULT '#000000',
-                type VARCHAR(50) NOT NULL,
-                is_default BOOLEAN DEFAULT FALSE
+                total_amount DECIMAL(15, 2) NOT NULL,
+                interest_rate DECIMAL(5, 2) NOT NULL,
+                tenure_months INT NOT NULL,
+                start_date DATE NOT NULL,
+                emi_amount DECIMAL(10, 2) NOT NULL
             )
         """)
-
-        try:
-            cursor.execute("ALTER TABLE categories ADD COLUMN icon VARCHAR(50) DEFAULT '🏷️'")
-            conn.commit()
-        except:
-            pass 
 
         conn.commit()
         conn.close()
@@ -138,6 +134,14 @@ class BudgetSchema(BaseModel):
     user_email: str
     category_id: int
     amount: float
+
+class LoanCreate(BaseModel):
+    user_email: str
+    name: str
+    total_amount: float
+    interest_rate: float
+    tenure_months: int
+    start_date: str
 
 # --- Helper Functions ---
 def create_access_token(data: dict):
@@ -683,6 +687,161 @@ def get_category_monthly_analytics(email: str):
     except Exception as e:
         logger.error(f"Category Monthly Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/predict/{email}")
+def get_prediction(email: str):
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Fetch last 3 months of expenses
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(date, '%Y-%m') as month, 
+                SUM(amount) as total
+            FROM transactions 
+            WHERE user_email = %s AND type = 'expense' 
+            AND date >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+            GROUP BY month ORDER BY month DESC
+        """, (email,))
+        data = cursor.fetchall()
+        
+        if not data:
+            return {"predicted_spend": 0}
+
+        # Weighted Average Logic (Recent months matter more)
+        weights = [0.5, 0.3, 0.2] # 50% last month, 30% month before, 20% 3rd month
+        prediction = 0
+        total_weight = 0
+        
+        for i, record in enumerate(data):
+            if i < len(weights):
+                prediction += float(record['total']) * weights[i]
+                total_weight += weights[i]
+        
+        final_prediction = prediction / total_weight if total_weight > 0 else 0
+        
+        conn.close()
+        return {"predicted_spend": round(final_prediction, 2)}
+    except Exception as e:
+        logger.error(f"Prediction Error: {e}")
+        return {"predicted_spend": 0}
+
+# 2. SMART INSIGHTS
+@app.get("/insights/{email}")
+def get_insights(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Compare This Month vs Last Month
+    cursor.execute("""
+        SELECT 
+            DATE_FORMAT(date, '%Y-%m') as month,
+            SUM(amount) as total
+        FROM transactions 
+        WHERE user_email = %s AND type = 'expense'
+        AND date >= DATE_SUB(NOW(), INTERVAL 2 MONTH)
+        GROUP BY month ORDER BY month DESC
+    """, (email,))
+    totals = cursor.fetchall()
+    
+    insights = []
+    
+    # 1. Spending Spike Insight
+    if len(totals) >= 2:
+        this_month = float(totals[0]['total'])
+        last_month = float(totals[1]['total'])
+        if this_month > last_month * 1.10: # 10% increase
+            diff = int(((this_month - last_month) / last_month) * 100)
+            insights.append({
+                "type": "warning", 
+                "text": f"You spent {diff}% more this month than last month.",
+                "value": f"+{diff}%"
+            })
+        elif this_month < last_month * 0.9:
+            diff = int(((last_month - this_month) / last_month) * 100)
+            insights.append({
+                "type": "success", 
+                "text": f"Great job! Spending is down {diff}% compared to last month.",
+                "value": f"-{diff}%"
+            })
+
+    # 2. Top Category Alert
+    cursor.execute("""
+        SELECT c.name, SUM(t.amount) as total
+        FROM transactions t JOIN categories c ON t.category_id = c.id
+        WHERE t.user_email = %s AND t.type = 'expense' 
+        AND MONTH(t.date) = MONTH(CURRENT_DATE())
+        GROUP BY c.name ORDER BY total DESC LIMIT 1
+    """, (email,))
+    top_cat = cursor.fetchone()
+    
+    if top_cat:
+        insights.append({
+            "type": "info",
+            "text": f"'{top_cat['name']}' is your highest spending category this month.",
+            "value": f"₹{float(top_cat['total']):,.0f}"
+        })
+        
+    conn.close()
+    return insights
+
+# 3. LOAN MANAGEMENT
+@app.post("/loans")
+def add_loan(loan: LoanCreate):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Calculate EMI (P x R x (1+R)^N) / ((1+R)^N - 1)
+    # Rate is monthly (Annual / 12 / 100)
+    P = loan.total_amount
+    R = (loan.interest_rate / 12) / 100
+    N = loan.tenure_months
+    
+    if R == 0:
+        emi = P / N
+    else:
+        emi = (P * R * pow(1 + R, N)) / (pow(1 + R, N) - 1)
+    
+    cursor.execute("""
+        INSERT INTO loans (user_email, name, total_amount, interest_rate, tenure_months, start_date, emi_amount)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (loan.user_email, loan.name, loan.total_amount, loan.interest_rate, loan.tenure_months, loan.start_date, emi))
+    
+    conn.commit()
+    conn.close()
+    return {"message": "Loan added"}
+
+@app.get("/loans/{email}")
+def get_loans(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM loans WHERE user_email = %s", (email,))
+    loans = cursor.fetchall()
+    
+    # Calculate Paid vs Remaining based on time passed
+    for loan in loans:
+        start = datetime.strptime(str(loan['start_date']), '%Y-%m-%d')
+        now = datetime.now()
+        months_passed = (now.year - start.year) * 12 + (now.month - start.month)
+        months_passed = max(0, min(months_passed, loan['tenure_months']))
+        
+        loan['months_paid'] = months_passed
+        loan['amount_paid'] = float(loan['emi_amount']) * months_passed
+        loan['amount_remaining'] = (float(loan['emi_amount']) * loan['tenure_months']) - loan['amount_paid']
+        loan['progress'] = (loan['amount_paid'] / (float(loan['emi_amount']) * loan['tenure_months'])) * 100
+        
+    conn.close()
+    return loans
+
+@app.delete("/loans/{id}")
+def delete_loan(id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM loans WHERE id = %s", (id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Loan deleted"}
 
 # ================= STARTUP (REQUIRED FOR RENDER) =================
 if __name__ == "__main__":
