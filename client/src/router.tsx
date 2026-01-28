@@ -19,6 +19,7 @@ import type { User } from './types';
 import NotFound from './components/Error/NotFound';
 import ErrorPage from './components/Error/ErrorPage';
 import LoanTracker from './components/Loans/LoanTracker';
+import Debts from './components/Debts/Debts';
 
 // Context for the router (User is required)
 interface RouterContext {
@@ -46,7 +47,6 @@ const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'dashboard',
   loader: async ({ context }) => {
-    // 1. Fetch all data in parallel
     const [dashboard, categories, prediction, insights] = await Promise.all([
         axios.get(`${API_URL}/dashboard/${context.user.email}`),
         axios.get(`${API_URL}/categories/${context.user.email}`),
@@ -167,7 +167,26 @@ const loansRoute = createRoute({
   component: LoanTracker,
 });
 
-// --- 10. Index & 404 ---
+// --- 10. Debts Route (Money Lent) ---
+const debtsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'debts',
+  loader: async ({ context }) => {
+    const [dashboardData, borrowersList] = await Promise.all([
+        axios.get(`${API_URL}/debts/dashboard/${context.user.email}`),
+        axios.get(`${API_URL}/debts/borrowers/${context.user.email}`)
+    ]);
+    
+    return {
+        stats: dashboardData.data.stats,
+        top_borrowers: dashboardData.data.top_borrowers,
+        all_borrowers: borrowersList.data
+    };
+  },
+  component: Debts,
+});
+
+// --- 11. Index & 404 ---
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
@@ -192,6 +211,7 @@ const routeTree = rootRoute.addChildren([
   analyticsRoute,
   categoriesRoute,
   loansRoute,
+  debtsRoute,
 ]);
 
 export const router = createRouter({

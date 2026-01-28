@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useRouter } from '@tanstack/react-router';
 import { 
   LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, 
-  Repeat, Settings, ChevronRight, Trophy, Sun, Moon, ReceiptIndianRupee
+  Repeat, Settings, ChevronRight, Trophy, Sun, Moon, ReceiptIndianRupee, HandCoins
 } from 'lucide-react';
 import icon from '../assets/iconNew.png';
 import { useTheme } from '../context/ThemeContext';
@@ -22,6 +22,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: '/goals', label: 'Savings Goals', icon: Trophy },
     { to: '/analytics', label: 'Analytics', icon: PieChart },
     { to: '/loans', label: 'Loan Tracker', icon: ReceiptIndianRupee },
+    { to: '/debts', label: 'Money Lent', icon: HandCoins },
     { to: '/categories', label: 'Settings', icon: Settings },
   ];
 
@@ -43,43 +44,39 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F3F4F6] dark:bg-slate-950 transition-colors duration-300">
+    <div className="min-h-screen flex bg-[#F3F4F6] dark:bg-slate-950 transition-colors duration-300 font-sans">
       
       {/* Sidebar Desktop */}
       <aside className="hidden md:flex flex-col w-72 fixed h-full z-30 pl-4 py-2">
         <div className="h-full bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl shadow-indigo-100/50 flex flex-col dark:bg-slate-900/80 dark:border-slate-800 dark:shadow-slate-900/50">
-            {/* Logo Section */}
-            <div className="p-8 pb-4 flex items-center gap-3">
-                <div className="p-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 rounded-xl shadow-lg">
-                    <img src={icon} className="w-6 h-6" />
+        <div className="p-6 pb-2 flex items-center justify-between">
+            <Link to="/dashboard" className="flex items-center gap-3 group">
+                <div className="p-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 rounded-xl shadow-lg transition-transform group-hover:scale-105">
+                    <img src={icon} className="w-6 h-6" alt="" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-bold text-slate-800 dark:text-white">FinTrack</h1>
-                    <p className="text-xs text-blue-500 font-bold uppercase">Premium</p>
+                    <h1 className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors">FinTrack</h1>
+                    {/* <p className="text-xs text-blue-500 font-bold uppercase">Alakh</p> */}
                 </div>
+            </Link>
+
+            <button 
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl text-stone-500 hover:bg-stone-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+              title="Toggle Theme"
+            >
+              {theme === 'dark' ? <Sun size={20} className="text-amber-400"/> : <Moon size={20} className="text-indigo-500"/>}
+            </button>
             </div>
 
-            <nav className="flex-1 px-4 space-y-2 mt-2">
+        {/* Navigation */}
+            <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
               {menuItems.map((item) => (
                 <NavItem key={item.to} item={item} />
               ))}
             </nav>
 
-            {/* Bottom Section */}
             <div className="p-4 mt-auto space-y-2">
-               
-               {/* THEME TOGGLE (Desktop) */}
-               <button 
-                  onClick={toggleTheme}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-white border border-stone-100 text-stone-600 font-bold hover:bg-stone-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 transition"
-               >
-                  <span className="flex items-center gap-2 text-sm">
-                    {theme === 'dark' ? <Sun size={18} className="text-amber-400"/> : <Moon size={18} className="text-indigo-500"/>}
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                  </span>
-               </button>
-
-               {/* User Profile */}
                <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border border-white shadow-sm dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
                    <div className="flex items-center gap-3 mb-4">
                       <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} alt="Profile" className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-600 shadow-sm" />
@@ -98,13 +95,27 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 w-full bg-white/90 backdrop-blur-lg z-50 px-5 py-3 flex justify-between items-center border-b border-slate-200 shadow-sm dark:bg-slate-900/90 dark:border-slate-800">
-         <div className="flex items-center gap-2">
+         <Link to="/dashboard" className="flex items-center gap-2">
              <div className="p-2 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 rounded-lg shadow-lg">
-                <img src={icon} className="w-6 h-6" />
+                <img src={icon} className="w-6 h-6" alt="Logo" />
              </div>
             <span className="font-bold text-slate-800 text-lg dark:text-white">FinTrack</span>
+         </Link>
+         
+         <div className="flex items-center gap-2">
+             <button 
+                onClick={toggleTheme}
+                className="p-2.5 rounded-xl text-stone-500 hover:bg-stone-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+             >
+                {theme === 'dark' ? <Sun size={20} className="text-amber-400"/> : <Moon size={20} className="text-indigo-500"/>}
+             </button>
+             <button 
+                onClick={() => setIsMobileMenuOpen(true)} 
+                className="p-2.5 bg-slate-100 rounded-xl dark:bg-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+             >
+                <Menu className="w-6 h-6" />
+             </button>
          </div>
-         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2.5 bg-slate-100 rounded-xl dark:bg-slate-800 dark:text-white"><Menu className="w-6 h-6" /></button>
       </div>
 
       {/* Mobile Menu Overlay */}
@@ -125,22 +136,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   </div>
               </div>
 
-              <nav className="space-y-2 flex-1">
+              <nav className="space-y-2 flex-1 overflow-y-auto">
                 {menuItems.map((item) => (
                     <NavItem key={item.to} item={item} onClick={() => setIsMobileMenuOpen(false)} />
                 ))}
               </nav>
 
               <div className="mt-6 space-y-3">
-                 {/* THEME TOGGLE (Mobile) */}
-                 <button 
-                  onClick={toggleTheme}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                 >
-                    {theme === 'dark' ? <Sun size={18} className="text-amber-400"/> : <Moon size={18}/>}
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                 </button>
-
+                 {/* Removed bottom Theme Toggle since it's now in the header */}
                  <button onClick={handleLogout} className="w-full py-3.5 text-rose-600 font-bold bg-rose-50 rounded-2xl flex items-center justify-center gap-2 dark:bg-rose-900/20 dark:text-rose-400">
                     <LogOut size={18} /> Sign Out
                  </button>
