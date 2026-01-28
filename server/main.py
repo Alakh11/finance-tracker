@@ -302,6 +302,7 @@ def get_all_transactions(
     category_id: Optional[int] = None,
     min_amount: Optional[float] = None,
     max_amount: Optional[float] = None,
+    payment_mode: Optional[str] = None,
     search: Optional[str] = None
 ):
     try:
@@ -309,7 +310,7 @@ def get_all_transactions(
         cursor = conn.cursor(dictionary=True)
         
         query = """
-            SELECT t.*, c.name as category_name 
+            SELECT t.*, c.name as category_name, c.icon as category_icon
             FROM transactions t 
             LEFT JOIN categories c ON t.category_id = c.id 
             WHERE t.user_email = %s
@@ -325,6 +326,9 @@ def get_all_transactions(
         if category_id:
             query += " AND t.category_id = %s"
             params.append(category_id)
+        if payment_mode and payment_mode != "All Modes":
+            query += " AND t.payment_mode = %s"
+            params.append(payment_mode)
         if min_amount is not None:
             query += " AND t.amount >= %s"
             params.append(min_amount)
@@ -335,8 +339,21 @@ def get_all_transactions(
             search_text = f"%{search.lower()}%"
             search_amount_clean = search.replace(",", "")
             search_amount = f"%{search_amount_clean}%"
-            query += " AND (LOWER(t.note) LIKE %s OR t.amount LIKE %s OR LOWER(t.type) LIKE %s)"
-            params.extend([search_text, search_amount, search_text])
+            query += """ AND (
+                LOWER(t.note) LIKE %s OR 
+                t.amount LIKE %s OR 
+                LOWER(t.type) LIKE %s OR 
+                LOWER(t.payment_mode) LIKE %s OR 
+                LOWER(c.name) LIKE %s
+            )"""
+            
+            params.extend([
+                search_text,    # note
+                search_amount,  # amount
+                search_text,    # type
+                search_text,    # payment_mode
+                search_text     # category_name
+            ])
 
         query += " ORDER BY t.date DESC"
 

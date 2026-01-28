@@ -24,7 +24,8 @@ export default function Transactions() {
     end_date: '',
     category_id: '',
     min_amount: '',
-    max_amount: ''
+    max_amount: '',
+    payment_mode: ''
   });
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -36,10 +37,13 @@ export default function Transactions() {
     setLoading(true);
     try {
         const params: any = {};
-        Object.keys(filters).forEach(key => {
-            // @ts-ignore
-            if (filters[key]) params[key] = filters[key];
-        });
+        if(filters.search) params.search = filters.search;
+        if(filters.start_date) params.start_date = filters.start_date;
+        if(filters.end_date) params.end_date = filters.end_date;
+        if(filters.category_id) params.category_id = filters.category_id;
+        if(filters.min_amount) params.min_amount = filters.min_amount;
+        if(filters.max_amount) params.max_amount = filters.max_amount;
+        if(filters.payment_mode) params.payment_mode = filters.payment_mode;
 
         const res = await axios.get(`${API_URL}/transactions/all/${user.email}`, { params });
         setTransactions(res.data);
@@ -52,7 +56,7 @@ export default function Transactions() {
 
   const clearFilters = async () => {
     if (!user?.email) return;
-    setFilters({ search: '', start_date: '', end_date: '', category_id: '', min_amount: '', max_amount: '' });
+    setFilters({ search: '', start_date: '', end_date: '', category_id: '', min_amount: '', max_amount: '', payment_mode: '' });
     setLoading(true);
     try {
         const res = await axios.get(`${API_URL}/transactions/all/${user.email}`);
@@ -74,6 +78,7 @@ export default function Transactions() {
           alert("Failed to delete transaction");
       }
   };
+
   const inputBaseClass = "w-full pl-10 pr-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-stone-800 dark:focus:ring-blue-500 outline-none bg-white dark:bg-slate-800 text-stone-700 dark:text-white";
   const labelClass = "text-xs font-bold text-stone-500 dark:text-slate-400 uppercase";
 
@@ -96,7 +101,7 @@ export default function Transactions() {
                <input 
                   type="text" 
                   name="search"
-                  placeholder="Search... (Press Enter)" 
+                  placeholder="Search note, amount, mode..." 
                   value={filters.search}
                   onChange={handleFilterChange}
                   onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
@@ -120,7 +125,8 @@ export default function Transactions() {
       {isFilterOpen && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] shadow-xl shadow-stone-200/50 dark:shadow-none border border-stone-100 dark:border-slate-800 animate-in slide-in-from-top-2">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {/* Date Inputs */}
+                
+                {/* 1. Date Inputs */}
                 <div className="space-y-1">
                     <label className={labelClass}>From Date</label>
                     <div className="relative">
@@ -136,7 +142,7 @@ export default function Transactions() {
                     </div>
                 </div>
 
-                {/* Amount Inputs */}
+                {/* 2. Amount Inputs */}
                 <div className="space-y-1">
                     <label className={labelClass}>Min Amount</label>
                     <div className="relative">
@@ -152,8 +158,8 @@ export default function Transactions() {
                     </div>
                 </div>
 
-                {/* Category Dropdown */}
-                <div className="md:col-span-2 lg:col-span-4 space-y-1">
+                {/* 3. Category Dropdown */}
+                <div className="md:col-span-1 lg:col-span-2 space-y-1">
                     <label className={labelClass}>Category</label>
                     <div className="relative">
                         <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 dark:text-slate-500" />
@@ -162,6 +168,21 @@ export default function Transactions() {
                             {categories?.map((c: any) => (
                                 <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
                             ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* 4. Payment Mode Dropdown */}
+                <div className="md:col-span-1 lg:col-span-2 space-y-1">
+                    <label className={labelClass}>Payment Mode</label>
+                    <div className="relative">
+                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 dark:text-slate-500" />
+                        <select name="payment_mode" value={filters.payment_mode} onChange={handleFilterChange} className={inputBaseClass}>
+                            <option value="">All Modes</option>
+                            <option value="UPI">UPI</option>
+                            <option value="Card">Card</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Net Banking">Net Banking</option>
                         </select>
                     </div>
                 </div>
@@ -202,18 +223,14 @@ export default function Transactions() {
                     ) : (
                         transactions.map((t: Transaction) => (
                         <tr key={t.id} className="hover:bg-stone-50/50 dark:hover:bg-slate-800/50 transition-colors group">
-                            {/* 1. Category */}
                             <td className="p-6 whitespace-nowrap">
                                 <span className="px-3 py-1 rounded-full bg-stone-100 dark:bg-slate-800 text-xs font-bold text-stone-500 dark:text-slate-300 flex items-center gap-2 w-fit">
                                     {t.category_name || t.category || 'Uncategorized'}
                                 </span>
                             </td>
-
-                            {/* 2. Description */}
                             <td className="p-6 font-bold text-stone-700 dark:text-slate-200 min-w-[200px]">
                                 <div className="flex items-center gap-2">
                                     {t.description || t.note || 'No Description'}
-                                    {/* Recurring Icon */}
                                     {t.is_recurring === 1 ? (
                                         <div className="text-blue-500 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 p-1 rounded-md" title="Recurring Transaction">
                                             <Repeat className="w-3 h-3" />
@@ -222,21 +239,15 @@ export default function Transactions() {
                                     {t.tags && <span className="text-xs font-normal text-blue-500">#{t.tags}</span>}
                                 </div>
                             </td>
-
-                            {/* 3. Date */}
                             <td className="p-6 text-stone-500 dark:text-slate-400 text-sm whitespace-nowrap">
                                 {new Date(t.date).toLocaleDateString()}
                             </td>
-
-                            {/* 4. Payment Mode */}
                             <td className="p-6 text-stone-500 dark:text-slate-400 text-sm whitespace-nowrap font-medium">
                                 <div className="flex items-center gap-2">
                                     <CreditCard className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500" />
                                     {t.payment_mode || 'Cash'}
                                 </div>
                             </td>
-
-                            {/* 5. Amount + Delete Button */}
                             <td className="p-6 text-right font-bold flex justify-end items-center gap-4 whitespace-nowrap">
                                 <span className={t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-800 dark:text-slate-200'}>
                                     {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString('en-IN')}
