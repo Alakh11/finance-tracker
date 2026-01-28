@@ -827,11 +827,56 @@ def delete_goal(id: int):
 @app.put("/goals/add-money")
 def add_money_to_goal(update: GoalUpdate):
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE goals SET current_amount = current_amount + %s WHERE id = %s", (update.amount_added, update.goal_id))
-    conn.commit()
-    conn.close()
-    return {"message": "Money added to goal"}
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM goals WHERE id = %s", (update.goal_id,))
+        goal = cursor.fetchone()
+        if not goal:
+            raise HTTPException(status_code=404, detail="Goal not found")
+
+        cursor.execute("UPDATE goals SET current_amount = current_amount + %s WHERE id = %s", (update.amount_added, update.goal_id))
+        
+        is_saving = update.amount_added > 0
+        tx_type = 'expense' if is_saving else 'income'
+        tx_note = f"Saved for {goal['name']}" if is_saving else f"Withdrew from {goal['name']}"
+        
+        cursor.execute("SELECT id FROM categories WHERE name = 'Savings' AND user_email = %s", (goal['user_email'],))
+        cat = cursor.fetchone()
+        if not cat:
+            cursor.execute("INSERT INTO categories (user_email, name, color, type, icon, is_default) VALUES (%s, 'Savings', '#10B981', 'expense', 'PiggyBank', TRUE)", (goal['user_email'],))
+            cat_id = cursor.lastrowid
+        else:
+            cat_id = cat['id']
+
+        cursor.execute("""
+            INSERT INTO transactions (user_email, amount, type, category_id, payment_mode, date, note, goal_id) 
+            VALUES (%s, %s, %s, %s, 'Transfer', NOW(), %s, %s)
+        """, (goal['user_email'], abs(update.amount_added), tx_type, cat_id, tx_note, update.goal_id))
+
+        conn.commit()
+        return {"message": "Transaction recorded"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+        return {"message": "Money added to goal"}
+        
+
+@app.get("/goals/{id}/history")
+def get_goal_history(id: int):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT * FROM transactions 
+            WHERE goal_id = %s 
+            ORDER BY date DESC
+        """, (id,))
+        data = cursor.fetchall()
+        return data
+    finally:
+        conn.close()
 
 # ================= DASHBOARD & ANALYTICS =================
 
