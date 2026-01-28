@@ -88,6 +88,34 @@ def init_db():
                 emi_amount DECIMAL(10, 2) NOT NULL
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE,
+                mobile VARCHAR(20) UNIQUE,
+                password_hash VARCHAR(255),
+                profile_pic TEXT,
+                is_verified BOOLEAN DEFAULT FALSE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS categories (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_email VARCHAR(255) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                color VARCHAR(50),
+                type ENUM('income', 'expense') NOT NULL,
+                icon VARCHAR(50),
+                is_default BOOLEAN DEFAULT FALSE
+            )
+        """)
+        if not cursor.fetchone():
+            hashed_pw = pwd_context.hash("Admin@2002")
+            cursor.execute("INSERT INTO users (name, email, password_hash, is_verified) VALUES (%s, %s, %s, TRUE)", ( hashed_pw))
+            create_default_categories( cursor)
+            conn.commit()
 
         conn.commit()
         conn.close()
@@ -301,6 +329,28 @@ def calculate_interest(principal, rate, period, start_date_str):
         
     return round(interest, 2)
 
+def create_default_categories(email: str, cursor):
+    defaults = [
+        # Income
+        ("Salary", "#10B981", "income", "Wallet"),
+        ("Freelance", "#3B82F6", "income", "Laptop"),
+        ("Investments", "#8B5CF6", "income", "TrendingUp"),
+        # Expenses
+        ("Food & Dining", "#EF4444", "expense", "Utensils"),
+        ("Transportation", "#F59E0B", "expense", "Car"),
+        ("Shopping", "#EC4899", "expense", "ShoppingBag"),
+        ("Utilities", "#6366F1", "expense", "Zap"),
+        ("Entertainment", "#8B5CF6", "expense", "Film"),
+        ("Health", "#10B981", "expense", "Activity"),
+        ("Education", "#3B82F6", "expense", "Book"),
+        ("Travel", "#F97316", "expense", "Plane"),
+        ("Rent/Housing", "#6366F1", "expense", "Home"),
+    ]
+    
+    query = "INSERT INTO categories (user_email, name, color, type, icon, is_default) VALUES (%s, %s, %s, %s, %s, TRUE)"
+    data = [(email, d[0], d[1], d[2], d[3]) for d in defaults]
+    cursor.executemany(query, data)
+
 @app.api_route("/", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "ok", "message": "API is running"}
@@ -312,10 +362,8 @@ def register(user: UserRegister):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     try:
-        # Check existing
         field = "email" if user.contact_type == 'email' else "mobile"
         
-        # 2. Check if user already exists (Unique Check)
         cursor.execute(f"SELECT id FROM users WHERE {field} = %s", (user.contact,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="User already exists")
@@ -334,9 +382,10 @@ def register(user: UserRegister):
         query = f"INSERT INTO users (name, {field}, password_hash, is_verified) VALUES (%s, %s, %s, TRUE)"
         cursor.execute(query, (user.name, user.contact, hashed_pw))
         
+        create_default_categories(user.contact, cursor)
+        
         conn.commit()
-        return {"message": "User registered successfully. Please login."}
-
+        return {"message": "User registered successfully."}
     except Exception as e:
         conn.rollback()
         logger.error(f"Register Error: {e}")
@@ -416,10 +465,15 @@ def google_login(data: GoogleAuth):
         user = cursor.fetchone()
         
         if not user:
+            # Create User
             cursor.execute(
                 "INSERT INTO users (name, email, profile_pic, is_verified) VALUES (%s, %s, %s, TRUE)", 
                 (data.name, data.email, data.picture)
             )
+            
+            # ADD DEFAULTS
+            create_default_categories(data.email, cursor)
+            
             conn.commit()
             
             # Fetch the new user to get details
