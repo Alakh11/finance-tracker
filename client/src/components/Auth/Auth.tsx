@@ -12,23 +12,57 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
   // UI States
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [method, setMethod] = useState<'email' | 'mobile'>('email');
-  const [step, setStep] = useState<'form' | 'otp'>('form'); // 'form' -> 'otp'
   
   // Data States
-  const [formData, setFormData] = useState({ name: '', contact: '', password: '', otp: '' });
+  const [formData, setFormData] = useState({ name: '', contact: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const API_URL = "https://finance-tracker-q60v.onrender.com";
 
-  // --- 1. Handle Standard Submit (Login / Register / Verify) ---
+  const validateForm = () => {
+    if (method === 'mobile') {
+        const mobileRegex = /^[6-9]\d{9}$/;
+        if (!mobileRegex.test(formData.contact)) {
+            return "Mobile number must be 10 digits and start with 6, 7, 8, or 9.";
+        }
+    }
+
+    if (method === 'email') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.contact)) {
+            return "Please enter a valid email address.";
+        }
+    }
+
+    if (mode === 'signup') {
+        const pw = formData.password;
+        if (pw.length < 8) return "Password must be at least 8 characters long.";
+        if (!/[A-Z]/.test(pw)) return "Password must contain at least one Uppercase letter.";
+        if (!/[a-z]/.test(pw)) return "Password must contain at least one lowercase letter.";
+        if (!/[0-9]/.test(pw)) return "Password must contain at least one number.";
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(pw)) return "Password must contain at least one special character.";
+    }
+
+    return null;
+  };
+
   const handleSubmit = async () => {
     setError('');
+    setSuccessMsg('');
+    
+    const validationError = validateForm();
+    if (validationError) {
+        setError(validationError);
+        return;
+    }
+
     setLoading(true);
+    
     try {
-        // A. SIGNUP REQUEST -> SENDS OTP
-        if (mode === 'signup' && step === 'form') {
-            if(!formData.name || !formData.contact || !formData.password) throw new Error("All fields are required");
+        if (mode === 'signup') {
+            if(!formData.name) throw new Error("Name is required.");
             
             await axios.post(`${API_URL}/auth/register`, {
                 name: formData.name,
@@ -36,19 +70,12 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
                 password: formData.password,
                 contact_type: method
             });
-            setStep('otp'); // Move to OTP screen
-            alert(`OTP sent to ${formData.contact}`);
+            
+            setSuccessMsg("Account created successfully! Please login.");
+            setMode('login'); 
+            setFormData(prev => ({...prev, password: ''})); 
         } 
-        // B. VERIFY OTP -> COMPLETES SIGNUP
-        else if (mode === 'signup' && step === 'otp') {
-            const res = await axios.post(`${API_URL}/auth/verify`, {
-                contact: formData.contact,
-                otp: formData.otp
-            });
-            onLoginSuccess(res.data.user, res.data.token);
-        }
-        // C. LOGIN REQUEST -> DIRECT ACCESS
-        else if (mode === 'login') {
+        else {
             const res = await axios.post(`${API_URL}/auth/login`, {
                 contact: formData.contact,
                 password: formData.password
@@ -62,15 +89,12 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
     }
   };
 
-  // --- 2. Handle Google Login ---
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
         try {
             setLoading(true);
-            // Decode Google Token to get basic info
             const decoded: any = jwtDecode(credentialResponse.credential);
             
-            // Send to Backend to sync DB and get App Token
             const res = await axios.post(`${API_URL}/auth/google`, {
                 email: decoded.email,
                 name: decoded.name,
@@ -96,37 +120,41 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
         </div>
 
         {/* Google Button */}
-        {step === 'form' && (
-            <>
-                <div className="flex justify-center mb-6">
-                    <GoogleLogin 
-                        onSuccess={handleGoogleSuccess} 
-                        onError={() => setError("Google Login Failed")}
-                        shape="pill"
-                        width="100%"
-                        text={mode === 'login' ? "signin_with" : "signup_with"}
-                    />
-                </div>
+        <div className="flex justify-center mb-6">
+            <GoogleLogin 
+                onSuccess={handleGoogleSuccess} 
+                onError={() => setError("Google Login Failed")}
+                shape="pill"
+                width="100%"
+                text={mode === 'login' ? "signin_with" : "signup_with"}
+            />
+        </div>
 
-                <div className="relative mb-6">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
-                    <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-slate-500">Or continue with</span></div>
-                </div>
-            </>
-        )}
+        <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+            <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-slate-500">Or continue with</span></div>
+        </div>
 
-        {/* Method Toggle (Email vs Mobile) */}
-        {step === 'form' && (
-            <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
-                <button onClick={() => setMethod('email')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${method === 'email' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}>Email</button>
-                <button onClick={() => setMethod('mobile')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${method === 'mobile' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}>Mobile</button>
-            </div>
-        )}
+        {/* Method Toggle */}
+        <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+            <button 
+                onClick={() => { setMethod('email'); setFormData({...formData, contact: ''}); setError(''); }} 
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${method === 'email' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+            >
+                Email
+            </button>
+            <button 
+                onClick={() => { setMethod('mobile'); setFormData({...formData, contact: ''}); setError(''); }} 
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${method === 'mobile' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+            >
+                Mobile
+            </button>
+        </div>
 
         {/* Inputs */}
         <div className="space-y-4">
             {/* Name Field (Signup Only) */}
-            {mode === 'signup' && step === 'form' && (
+            {mode === 'signup' && (
                 <div className="relative group">
                     <UserIcon className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                     <input 
@@ -138,54 +166,52 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
                 </div>
             )}
 
-            {step === 'form' ? (
-                <>
-                    {/* Contact Field */}
-                    <div className="relative group">
-                        {method === 'email' ? 
-                            <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" /> : 
-                            <Phone className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            {/* Contact Field */}
+            <div className="relative group">
+                {method === 'email' ? 
+                    <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" /> : 
+                    <Phone className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                }
+                <input 
+                    type={method === 'mobile' ? 'tel' : 'text'}
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium focus:ring-2 focus:ring-blue-100 transition-all"
+                    placeholder={method === 'email' ? "Email Address" : "Mobile Number (10 digits)"}
+                    value={formData.contact}
+                    onChange={e => {
+                        if (method === 'mobile') {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                            setFormData({...formData, contact: val});
+                        } else {
+                            setFormData({...formData, contact: e.target.value});
                         }
-                        <input 
-                            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium focus:ring-2 focus:ring-blue-100 transition-all"
-                            placeholder={method === 'email' ? "Email Address" : "Mobile Number"}
-                            value={formData.contact}
-                            onChange={e => setFormData({...formData, contact: e.target.value})}
-                        />
-                    </div>
-                    
-                    {/* Password Field */}
-                    <div className="relative group">
-                        <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                        <input 
-                            type="password"
-                            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium focus:ring-2 focus:ring-blue-100 transition-all"
-                            placeholder="Password"
-                            value={formData.password}
-                            onChange={e => setFormData({...formData, password: e.target.value})}
-                        />
-                    </div>
-                </>
-            ) : (
-                /* OTP Field */
-                <div className="relative animate-in fade-in zoom-in">
-                    <CheckCircle className="absolute left-4 top-3.5 w-5 h-5 text-emerald-500" />
-                    <input 
-                        className="w-full pl-12 pr-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl outline-none font-bold text-lg tracking-widest text-center text-emerald-800 focus:ring-2 focus:ring-emerald-100 transition-all"
-                        placeholder="ENTER OTP"
-                        value={formData.otp}
-                        onChange={e => setFormData({...formData, otp: e.target.value})}
-                        autoFocus
-                    />
-                    {/* <p className="text-xs text-center text-slate-400 mt-2 font-medium">Check your server console for the mock code.</p> */}
-                </div>
-            )}
+                    }}
+                />
+            </div>
+            
+            {/* Password Field */}
+            <div className="relative group">
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                <input 
+                    type="password"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium focus:ring-2 focus:ring-blue-100 transition-all"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={e => setFormData({...formData, password: e.target.value})}
+                />
+            </div>
         </div>
 
-        {/* Error Message */}
+        {/* Feedback Messages */}
         {error && (
-            <div className="flex items-center gap-2 mt-4 p-3 bg-rose-50 text-rose-600 text-sm font-bold rounded-xl">
-                <AlertCircle className="w-4 h-4" /> {error}
+            <div className="flex items-start gap-2 mt-4 p-3 bg-rose-50 text-rose-600 text-sm font-bold rounded-xl animate-in fade-in slide-in-from-top-1 border border-rose-100">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> 
+                <span className="leading-tight">{error}</span>
+            </div>
+        )}
+        
+        {successMsg && (
+            <div className="flex items-center gap-2 mt-4 p-3 bg-emerald-50 text-emerald-600 text-sm font-bold rounded-xl animate-in fade-in slide-in-from-top-1 border border-emerald-100">
+                <CheckCircle className="w-4 h-4 shrink-0" /> {successMsg}
             </div>
         )}
 
@@ -193,26 +219,24 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
         <button 
             onClick={handleSubmit} 
             disabled={loading}
-            className="w-full mt-6 bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 transition flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full mt-6 bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 transition flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-slate-200"
         >
-            {loading ? 'Processing...' : (step === 'otp' ? 'Verify & Login' : (mode === 'login' ? 'Sign In' : 'Send OTP'))}
+            {loading ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
             {!loading && <ArrowRight className="w-4 h-4" />}
         </button>
 
         {/* Mode Toggle */}
-        {step === 'form' && (
-            <div className="mt-6 text-center">
-                <p className="text-slate-500 text-sm font-medium">
-                    {mode === 'login' ? "Don't have an account?" : "Already have an account?"} 
-                    <button 
-                        onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                        className="ml-2 font-bold text-blue-600 hover:underline"
-                    >
-                        {mode === 'login' ? 'Sign Up' : 'Login'}
-                    </button>
-                </p>
-            </div>
-        )}
+        <div className="mt-6 text-center">
+            <p className="text-slate-500 text-sm font-medium">
+                {mode === 'login' ? "Don't have an account?" : "Already have an account?"} 
+                <button 
+                    onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); }}
+                    className="ml-2 font-bold text-blue-600 hover:underline"
+                >
+                    {mode === 'login' ? 'Sign Up' : 'Login'}
+                </button>
+            </p>
+        </div>
     </div>
   );
 }
