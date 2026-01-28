@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLoaderData, useRouter } from '@tanstack/react-router';
 import axios from 'axios';
 import { 
-  Search, Filter, X, Calendar, IndianRupee, Tag, Trash2 
+  Search, Filter, X, Calendar, IndianRupee, Tag, Trash2, Repeat, CreditCard 
 } from 'lucide-react';
 import type { Transaction } from '../../types';
 
@@ -178,34 +178,43 @@ export default function Transactions() {
              <div className="p-10 text-center text-stone-400">Loading...</div>
         ) : (
           <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[800px]">
+              <table className="w-full text-left min-w-[900px]">
                  <thead className="bg-stone-50 text-stone-500 text-sm font-semibold uppercase">
                     <tr>
                        <th className="p-6 whitespace-nowrap">Category</th>
                        <th className="p-6 whitespace-nowrap">Description</th>
                        <th className="p-6 whitespace-nowrap">Date</th>
+                       <th className="p-6 whitespace-nowrap">Payment</th>
                        <th className="p-6 text-right whitespace-nowrap">Amount</th>
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-stone-50">
                     {transactions.length === 0 ? (
                         <tr>
-                            <td colSpan={4} className="p-10 text-center text-stone-400">No transactions found.</td>
+                            <td colSpan={5} className="p-10 text-center text-stone-400">No transactions found.</td>
                         </tr>
                     ) : (
                         transactions.map((t: Transaction) => (
                         <tr key={t.id} className="hover:bg-stone-50/50 transition-colors group">
                             {/* 1. Category */}
                             <td className="p-6 whitespace-nowrap">
-                                <span className="px-3 py-1 rounded-full bg-stone-100 text-xs font-bold text-stone-500">
+                                <span className="px-3 py-1 rounded-full bg-stone-100 text-xs font-bold text-stone-500 flex items-center gap-2 w-fit">
                                     {t.category_name || t.category || 'Uncategorized'}
                                 </span>
                             </td>
 
                             {/* 2. Description */}
                             <td className="p-6 font-bold text-stone-700 min-w-[200px]">
-                                {t.description || t.note || 'No Description'}
-                                {t.tags && <span className="ml-2 text-xs font-normal text-blue-500">#{t.tags}</span>}
+                                <div className="flex items-center gap-2">
+                                    {t.description || t.note || 'No Description'}
+                                    {/* Recurring Icon */}
+                                    {t.is_recurring === 1 ? (
+                                        <div className="text-blue-500 bg-blue-50 p-1 rounded-md" title="Recurring Transaction">
+                                            <Repeat className="w-3 h-3" />
+                                        </div>
+                                    ) : null}
+                                    {t.tags && <span className="text-xs font-normal text-blue-500">#{t.tags}</span>}
+                                </div>
                             </td>
 
                             {/* 3. Date */}
@@ -213,7 +222,15 @@ export default function Transactions() {
                                 {new Date(t.date).toLocaleDateString()}
                             </td>
 
-                            {/* 4. Amount + Delete Button */}
+                            {/* 4. Payment Mode */}
+                            <td className="p-6 text-stone-500 text-sm whitespace-nowrap font-medium">
+                                <div className="flex items-center gap-2">
+                                    <CreditCard className="w-3.5 h-3.5 text-stone-400" />
+                                    {t.payment_mode || 'Cash'}
+                                </div>
+                            </td>
+
+                            {/* 5. Amount + Delete Button */}
                             <td className="p-6 text-right font-bold flex justify-end items-center gap-4 whitespace-nowrap">
                                 <span className={t.type === 'income' ? 'text-emerald-600' : 'text-stone-800'}>
                                     {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString('en-IN')}

@@ -7,6 +7,7 @@ export interface User {
 }
 
 export interface Transaction {
+  is_recurring: number;
   category_name: string;
   description: ReactNode;
   tags: any;
