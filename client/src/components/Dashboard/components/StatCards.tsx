@@ -6,24 +6,27 @@ const Card = ({ title, amount, icon: Icon, type }: any) => {
         bg: 'bg-gradient-to-br from-blue-600 to-indigo-700', 
         text: 'text-white', 
         sub: 'text-blue-100', 
-        icon: 'bg-white/20 text-white' 
+        icon: 'bg-white/20 text-white',
+        border: 'border-white/20'
     },
     income: { 
-        bg: 'bg-white', 
-        text: 'text-slate-800', 
-        sub: 'text-slate-400', 
-        icon: 'bg-emerald-100 text-emerald-600' 
+        bg: 'bg-white dark:bg-slate-900', 
+        text: 'text-slate-800 dark:text-white', 
+        sub: 'text-slate-400 dark:text-slate-500', 
+        icon: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+        border: 'border-white/50 dark:border-slate-800'
     },
     expense: { 
-        bg: 'bg-white', 
-        text: 'text-slate-800', 
-        sub: 'text-slate-400', 
-        icon: 'bg-rose-100 text-rose-600' 
+        bg: 'bg-white dark:bg-slate-900', 
+        text: 'text-slate-800 dark:text-white', 
+        sub: 'text-slate-400 dark:text-slate-500', 
+        icon: 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400',
+        border: 'border-white/50 dark:border-slate-800'
     },
   }[type as 'balance' | 'income' | 'expense'];
 
   return (
-    <div className={`${styles.bg} p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300`}>
+    <div className={`${styles.bg} ${styles.border} p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border relative overflow-hidden group hover:-translate-y-1 transition-all duration-300`}>
       <div className="relative z-10 flex justify-between items-start">
         <div>
           <p className={`${styles.sub} text-sm font-bold mb-2 uppercase tracking-wide`}>{title}</p>
