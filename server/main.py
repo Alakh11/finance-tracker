@@ -118,6 +118,12 @@ class CategoryCreate(BaseModel):
     type: str # 'income' or 'expense'
     icon: str
 
+class CategoryUpdate(BaseModel):
+    name: str
+    color: str
+    icon: str
+    type: str
+
 class GoalCreate(BaseModel):
     user_email: str
     name: str
@@ -382,6 +388,28 @@ def delete_category(id: int):
         cursor.execute("DELETE FROM categories WHERE id = %s", (id,))
         conn.commit()
         return {"message": "Category deleted"}
+    finally:
+        conn.close()
+
+def update_category(id: int, cat: CategoryUpdate):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Check if exists
+        cursor.execute("SELECT * FROM categories WHERE id = %s", (id,))
+        if not cursor.fetchone():
+             raise HTTPException(status_code=404, detail="Category not found")
+             
+        cursor.execute("""
+            UPDATE categories 
+            SET name = %s, color = %s, icon = %s, type = %s 
+            WHERE id = %s
+        """, (cat.name, cat.color, cat.icon, cat.type, id))
+        conn.commit()
+        return {"message": "Category updated"}
+    except Exception as e:
+        logger.error(f"Update Cat Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
