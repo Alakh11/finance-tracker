@@ -843,7 +843,7 @@ def add_money_to_goal(update: GoalUpdate):
         cursor.execute("SELECT id FROM categories WHERE name = 'Savings' AND user_email = %s", (goal['user_email'],))
         cat = cursor.fetchone()
         if not cat:
-            cursor.execute("INSERT INTO categories (user_email, name, color, type, icon, is_default) VALUES (%s, 'Savings', '#10B981', 'expense', 'PiggyBank', TRUE)", (goal['user_email'],))
+            cursor.execute("INSERT INTO categories (user_email, name, color, type, icon, is_default) VALUES (%s, 'Savings', '#10B981', 'expense', '🐷', TRUE)", (goal['user_email'],))
             cat_id = cursor.lastrowid
         else:
             cat_id = cat['id']
