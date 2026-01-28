@@ -223,61 +223,67 @@ def register(user: UserRegister):
     try:
         # Check existing
         field = "email" if user.contact_type == 'email' else "mobile"
-        cursor.execute(f"SELECT * FROM users WHERE {field} = %s", (user.contact,))
+        
+        # 2. Check if user already exists (Unique Check)
+        cursor.execute(f"SELECT id FROM users WHERE {field} = %s", (user.contact,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="User already exists")
 
         # 1. Generate OTP
-        otp = send_otp_mock(user.contact)
-        expiry = datetime.utcnow() + timedelta(minutes=10)
+        # otp = send_otp_mock(user.contact)
+        # expiry = datetime.utcnow() + timedelta(minutes=10)
         
-        cursor.execute("INSERT INTO otps (identifier, otp_code, expires_at) VALUES (%s, %s, %s)", (user.contact, otp, expiry))
+        # cursor.execute("INSERT INTO otps (identifier, otp_code, expires_at) VALUES (%s, %s, %s)", (user.contact, otp, expiry))
         
         # 2. Hash Password
         hashed_pw = pwd_context.hash(user.password)
         
-        # 3. Create unverified user
-        query = f"INSERT INTO users (name, {field}, password_hash, is_verified) VALUES (%s, %s, %s, FALSE)"
+        # 4. Create User (Directly Verified)
+        # We set is_verified = TRUE immediately
+        query = f"INSERT INTO users (name, {field}, password_hash, is_verified) VALUES (%s, %s, %s, TRUE)"
         cursor.execute(query, (user.name, user.contact, hashed_pw))
         
         conn.commit()
-        return {"message": "OTP sent", "contact": user.contact}
+        return {"message": "User registered successfully. Please login."}
+
     except Exception as e:
+        conn.rollback()
+        logger.error(f"Register Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.post("/auth/verify")
-def verify_otp(data: VerifyOTP):
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        # Check OTP
-        cursor.execute("SELECT * FROM otps WHERE identifier = %s AND otp_code = %s AND expires_at > NOW()", (data.contact, data.otp))
-        if not cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Invalid or Expired OTP")
+# @app.post("/auth/verify")
+# def verify_otp(data: VerifyOTP):
+#     conn = get_db()
+#     cursor = conn.cursor(dictionary=True)
+#     try:
+#         # Check OTP
+#         cursor.execute("SELECT * FROM otps WHERE identifier = %s AND otp_code = %s AND expires_at > NOW()", (data.contact, data.otp))
+#         if not cursor.fetchone():
+#             raise HTTPException(status_code=400, detail="Invalid or Expired OTP")
             
-        # Mark User Verified
-        is_email = "@" in data.contact
-        field = "email" if is_email else "mobile"
+#         # Mark User Verified
+#         is_email = "@" in data.contact
+#         field = "email" if is_email else "mobile"
         
-        cursor.execute(f"UPDATE users SET is_verified = TRUE WHERE {field} = %s", (data.contact,))
+#         cursor.execute(f"UPDATE users SET is_verified = TRUE WHERE {field} = %s", (data.contact,))
         
-        # Get User Data for Token
-        cursor.execute(f"SELECT * FROM users WHERE {field} = %s", (data.contact,))
-        user_db = cursor.fetchone()
+#         # Get User Data for Token
+#         cursor.execute(f"SELECT * FROM users WHERE {field} = %s", (data.contact,))
+#         user_db = cursor.fetchone()
         
-        # Generate Token
-        token = create_access_token({"sub": user_db['email'] or user_db['mobile'], "name": user_db['name']})
+#         # Generate Token
+#         token = create_access_token({"sub": user_db['email'] or user_db['mobile'], "name": user_db['name']})
         
-        # Cleanup OTP
-        cursor.execute("DELETE FROM otps WHERE identifier = %s", (data.contact,))
-        conn.commit()
+#         # Cleanup OTP
+#         cursor.execute("DELETE FROM otps WHERE identifier = %s", (data.contact,))
+#         conn.commit()
         
-        return {"token": token, "user": {"name": user_db['name'], "email": user_db['email'] or user_db['mobile'], "picture": ""}}
+#         return {"token": token, "user": {"name": user_db['name'], "email": user_db['email'] or user_db['mobile'], "picture": ""}}
         
-    finally:
-        conn.close()
+#     finally:
+#         conn.close()
 
 @app.post("/auth/login")
 def login(data: UserLogin):
@@ -297,7 +303,15 @@ def login(data: UserLogin):
             raise HTTPException(status_code=400, detail="Account not verified. Please register again.")
 
         token = create_access_token({"sub": user['email'] or user['mobile'], "name": user['name']})
-        return {"token": token, "user": {"name": user['name'], "email": user['email'] or user['mobile'], "picture": user['profile_pic'] or ""}}
+        
+        return {
+            "token": token, 
+            "user": {
+                "name": user['name'], 
+                "email": user['email'] or user['mobile'], 
+                "picture": user['profile_pic'] or ""
+            }
+        }
     finally:
         conn.close()
         
@@ -306,20 +320,32 @@ def google_login(data: GoogleAuth):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     try:
-        # 1. Check if user exists by email
+        # Check if user exists by email
         cursor.execute("SELECT * FROM users WHERE email = %s", (data.email,))
         user = cursor.fetchone()
+        
         if not user:
-            cursor.execute("INSERT INTO users (name, email, profile_pic, is_verified) VALUES (%s, %s, %s, TRUE)", (data.name, data.email, data.picture))
+            cursor.execute(
+                "INSERT INTO users (name, email, profile_pic, is_verified) VALUES (%s, %s, %s, TRUE)", 
+                (data.name, data.email, data.picture)
+            )
             conn.commit()
             
-            # Fetch the new ID
+            # Fetch the new user to get details
             cursor.execute("SELECT * FROM users WHERE email = %s", (data.email,))
             user = cursor.fetchone()
             
-        # 3. Generate App Token (Same as standard login)
+        # Generate Token
         token = create_access_token({"sub": user['email'], "name": user['name']})
-        return {"token": token, "user": {"name": user['name'], "email": user['email'], "picture": user['profile_pic']}}
+        
+        return {
+            "token": token, 
+            "user": {
+                "name": user['name'], 
+                "email": user['email'], 
+                "picture": user['profile_pic']
+            }
+        }
     except Exception as e:
         logger.error(f"Google Login Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
