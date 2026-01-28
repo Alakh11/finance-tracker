@@ -200,13 +200,12 @@ const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'admin',
   beforeLoad: ({ context }) => {
-    // 1. Strict Frontend Guard
     if (context.user.email !== "alakhchaturvedi2002@gmail.com") {
       throw redirect({ to: '/dashboard' });
     }
   },
   loader: async () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token'); 
     const res = await axios.get(`${API_URL}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` } 
     });
