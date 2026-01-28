@@ -1,6 +1,7 @@
 import { 
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface Props {
   history: any[];
@@ -14,17 +15,17 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       const isOver = diff < 0;
   
       return (
-        <div className="bg-white p-4 rounded-xl shadow-xl border border-stone-100 text-xs">
-          <p className="font-bold text-stone-800 text-sm mb-2">{label}</p>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-xl border border-stone-100 dark:border-slate-700 text-xs">
+          <p className="font-bold text-stone-800 dark:text-white text-sm mb-2">{label}</p>
           <div className="space-y-1">
-              <p className="flex justify-between gap-4 text-stone-500">
-                  <span>Budget:</span> <span className="font-bold">₹{limit.toLocaleString()}</span>
+              <p className="flex justify-between gap-4 text-stone-500 dark:text-slate-400">
+                  <span>Budget:</span> <span className="font-bold text-stone-700 dark:text-slate-200">₹{limit.toLocaleString()}</span>
               </p>
-              <p className="flex justify-between gap-4 text-stone-500">
-                  <span>Spent:</span> <span className={`font-bold ${isOver ? 'text-rose-500' : 'text-blue-500'}`}>₹{spent.toLocaleString()}</span>
+              <p className="flex justify-between gap-4 text-stone-500 dark:text-slate-400">
+                  <span>Spent:</span> <span className={`font-bold ${isOver ? 'text-rose-500 dark:text-rose-400' : 'text-blue-500 dark:text-blue-400'}`}>₹{spent.toLocaleString()}</span>
               </p>
-              <div className="h-px bg-stone-100 my-1"></div>
-              <p className={`font-bold text-right ${isOver ? 'text-rose-600' : 'text-emerald-600'}`}>
+              <div className="h-px bg-stone-100 dark:bg-slate-700 my-1"></div>
+              <p className={`font-bold text-right ${isOver ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                   {isOver ? `Over by ₹${Math.abs(diff).toLocaleString()}` : `Saved ₹${diff.toLocaleString()}`}
               </p>
           </div>
@@ -35,10 +36,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   };
 
 export default function BudgetChart({ history }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   return (
-    <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-stone-50 shadow-sm h-full flex flex-col">
-        <h3 className="font-bold text-stone-700 text-lg mb-2">Spending Trends</h3>
-        <p className="text-stone-400 text-xs mb-6">Comparison of your monthly budget vs actual spending</p>
+    <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2rem] border border-stone-50 dark:border-slate-800 shadow-sm h-full flex flex-col transition-colors duration-300">
+        <h3 className="font-bold text-stone-700 dark:text-white text-lg mb-2">Spending Trends</h3>
+        <p className="text-stone-400 dark:text-slate-500 text-xs mb-6">Comparison of your monthly budget vs actual spending</p>
         
         <div className="flex-1 w-full min-h-[300px]">
             {history && history.length > 0 ? (
@@ -50,34 +54,36 @@ export default function BudgetChart({ history }: Props) {
                                 <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.2}/>
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        {/* Dynamic Grid Color */}
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#f3f4f6'} />
+                        
                         <XAxis 
                             dataKey="month" 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{fontSize: 11, fill: '#9CA3AF'}} 
+                            tick={{fontSize: 11, fill: isDark ? '#94a3b8' : '#9CA3AF'}} 
                             dy={10} 
                         />
                         <YAxis 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{fontSize: 11, fill: '#9CA3AF'}} 
+                            tick={{fontSize: 11, fill: isDark ? '#94a3b8' : '#9CA3AF'}} 
                             tickFormatter={(value) => `₹${value/1000}k`}
                         />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip cursor={{fill: isDark ? '#1e293b' : '#f9fafb'}} content={<CustomTooltip />} />
                         
-                        {/* Budget Limit as a Dashed Line for clear "Ceiling" visual */}
+                        {/* Budget Limit Line */}
                         <Line 
                             type="monotone" 
                             dataKey="budget_limit" 
-                            stroke="#9CA3AF" 
+                            stroke={isDark ? '#64748b' : '#9CA3AF'} 
                             strokeWidth={2} 
                             strokeDasharray="5 5" 
                             dot={false}
                             name="Budget Limit"
                         />
                         
-                        {/* Actual Spending as Gradient Bar */}
+                        {/* Actual Spending Bar */}
                         <Bar 
                             dataKey="total_spent" 
                             name="Actual Spent" 
@@ -88,7 +94,7 @@ export default function BudgetChart({ history }: Props) {
                     </ComposedChart>
                 </ResponsiveContainer>
             ) : (
-                <div className="h-full flex items-center justify-center text-stone-400 text-sm">
+                <div className="h-full flex items-center justify-center text-stone-400 dark:text-slate-600 text-sm">
                     No history data available yet.
                 </div>
             )}
