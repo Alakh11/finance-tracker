@@ -149,6 +149,26 @@ class LoanUpdate(BaseModel):
     interest_rate: float
     tenure_months: int
     start_date: str
+
+class BorrowerCreate(BaseModel):
+    user_email: str
+    name: str
+    phone: Optional[str] = None
+
+class DebtCreate(BaseModel):
+    borrower_id: Optional[int] = None 
+    new_borrower_name: Optional[str] = None
+    user_email: str
+    amount: float
+    date: str
+    due_date: Optional[str] = None
+    reason: str
+
+class RepaymentCreate(BaseModel):
+    debt_id: int
+    amount: float
+    date: str
+    mode: str
     
 
 # --- Helper Functions ---
@@ -904,6 +924,160 @@ def update_loan(loan_id: int, loan: LoanUpdate):
     except Exception as e:
         logger.error(f"Update Loan Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- DEBT TRACKER ENDPOINTS ---
+
+# 1. Get Dashboard Stats & Top Borrowers
+@app.get("/debts/dashboard/{email}")
+def get_debt_dashboard(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Summary Stats
+    cursor.execute("""
+        SELECT 
+            SUM(total_lent) as total_lent, 
+            SUM(total_repaid) as total_repaid,
+            SUM(current_balance) as outstanding
+        FROM borrowers WHERE user_email = %s
+    """, (email,))
+    stats = cursor.fetchone()
+    
+    # Top 3 People owing money
+    cursor.execute("""
+        SELECT * FROM borrowers 
+        WHERE user_email = %s AND current_balance > 0 
+        ORDER BY current_balance DESC LIMIT 3
+    """, (email,))
+    top_borrowers = cursor.fetchall()
+    
+    conn.close()
+    return {"stats": stats, "top_borrowers": top_borrowers}
+
+# 2. Get All Borrowers
+@app.get("/debts/borrowers/{email}")
+def get_borrowers(email: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM borrowers WHERE user_email = %s ORDER BY last_activity DESC", (email,))
+    borrowers = cursor.fetchall()
+    conn.close()
+    return borrowers
+
+# 3. Add New Debt (Lend Money)
+@app.post("/debts/lend")
+def lend_money(debt: DebtCreate):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Step A: Get or Create Borrower
+        borrower_id = debt.borrower_id
+        if not borrower_id and debt.new_borrower_name:
+            cursor.execute(
+                "INSERT INTO borrowers (user_email, name) VALUES (%s, %s)", 
+                (debt.user_email, debt.new_borrower_name)
+            )
+            borrower_id = cursor.lastrowid
+            
+        if not borrower_id:
+            raise HTTPException(status_code=400, detail="Borrower ID or Name required")
+
+        # Step B: Insert Debt Record
+        cursor.execute("""
+            INSERT INTO debts (borrower_id, amount, date, due_date, reason, status)
+            VALUES (%s, %s, %s, %s, %s, 'Pending')
+        """, (borrower_id, debt.amount, debt.date, debt.due_date, debt.reason))
+        
+        # Step C: Update Borrower Totals
+        cursor.execute("""
+            UPDATE borrowers 
+            SET total_lent = total_lent + %s, 
+                current_balance = current_balance + %s,
+                last_activity = NOW()
+            WHERE id = %s
+        """, (debt.amount, debt.amount, borrower_id))
+        
+        conn.commit()
+        return {"message": "Lending recorded successfully"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+# 4. Record Repayment
+@app.post("/debts/repay")
+def repay_money(repay: RepaymentCreate):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Step A: Get Debt Info
+        cursor.execute("SELECT * FROM debts WHERE id = %s", (repay.debt_id,))
+        debt = cursor.fetchone()
+        if not debt:
+            raise HTTPException(status_code=404, detail="Debt not found")
+            
+        new_repaid = float(debt['amount_repaid']) + repay.amount
+        is_fully_paid = new_repaid >= float(debt['amount'])
+        new_status = 'Paid' if is_fully_paid else 'Partial'
+        
+        # Step B: Insert Repayment Record
+        cursor.execute("""
+            INSERT INTO repayments (debt_id, amount, date, mode)
+            VALUES (%s, %s, %s, %s)
+        """, (repay.debt_id, repay.amount, repay.date, repay.mode))
+        
+        # Step C: Update Debt Status
+        cursor.execute("""
+            UPDATE debts SET amount_repaid = %s, status = %s WHERE id = %s
+        """, (new_repaid, new_status, repay.debt_id))
+        
+        # Step D: Update Borrower Totals
+        cursor.execute("""
+            UPDATE borrowers 
+            SET total_repaid = total_repaid + %s, 
+                current_balance = current_balance - %s,
+                last_activity = NOW()
+            WHERE id = %s
+        """, (repay.amount, repay.amount, debt['borrower_id']))
+        
+        conn.commit()
+        return {"message": "Repayment recorded"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+# 5. Get Detailed Ledger for a Borrower
+@app.get("/debts/ledger/{borrower_id}")
+def get_ledger(borrower_id: int):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Get Borrower Info
+    cursor.execute("SELECT * FROM borrowers WHERE id = %s", (borrower_id,))
+    borrower = cursor.fetchone()
+    
+    # Get all loans
+    cursor.execute("SELECT * FROM debts WHERE borrower_id = %s ORDER BY date DESC", (borrower_id,))
+    debts = cursor.fetchall()
+    
+    # Get all repayments
+    # We join debts to filter by borrower_id indirectly
+    cursor.execute("""
+        SELECT r.*, d.reason as loan_reason 
+        FROM repayments r
+        JOIN debts d ON r.debt_id = d.id
+        WHERE d.borrower_id = %s
+        ORDER BY r.date DESC
+    """, (borrower_id,))
+    repayments = cursor.fetchall()
+    
+    conn.close()
+    return {"borrower": borrower, "debts": debts, "repayments": repayments}
 
 # ================= STARTUP (REQUIRED FOR RENDER) =================
 if __name__ == "__main__":
