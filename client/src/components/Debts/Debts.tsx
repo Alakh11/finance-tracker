@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useLoaderData, useRouter } from '@tanstack/react-router';
 import { 
   Plus, Wallet, ArrowUpRight, ArrowDownLeft, AlertCircle, X, CheckCircle2, 
-  Crown, AlertTriangle, Clock, Calendar, TrendingUp, Check
+  Crown, AlertTriangle, Clock, Calendar, TrendingUp, Check, Trash2 
 } from 'lucide-react';
 
 interface Borrower {
@@ -60,6 +60,15 @@ export default function Debts() {
       }
   };
 
+  const deleteBorrower = async (e: React.MouseEvent, id: number) => {
+      e.stopPropagation();
+      if (!confirm("Are you sure? This will delete the person and ALL their transaction history permanently.")) return;
+      try {
+          await axios.delete(`${API_URL}/debts/borrowers/${id}`);
+          router.invalidate();
+      } catch (e) { alert("Failed to delete borrower"); }
+  };
+
   const openLedger = (borrower: Borrower) => {
       setSelectedBorrower(borrower);
       setShowLedger(true);
@@ -67,7 +76,8 @@ export default function Debts() {
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
-        {/* HEADER & STATS */}
+        
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
             <div>
                 <h2 className="text-3xl font-bold text-stone-800 dark:text-white flex items-center gap-2">
@@ -95,7 +105,6 @@ export default function Debts() {
                 <div className="flex items-center gap-3 mb-2"><div className="p-2 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg"><AlertCircle size={20}/></div><span className="text-xs font-bold uppercase text-stone-400 dark:text-slate-500">Outstanding</span></div>
                 <p className="text-3xl font-black text-rose-600 dark:text-rose-400">₹{stats?.outstanding?.toLocaleString() || 0}</p>
             </div>
-            {/* Top Debtors */}
             <div className="bg-indigo-600 dark:bg-indigo-900/40 p-6 rounded-[2rem] text-white shadow-lg shadow-indigo-200 dark:shadow-none flex flex-col justify-between">
                 <div>
                    <div className="flex items-center gap-2 mb-3 opacity-90">
@@ -125,7 +134,6 @@ export default function Debts() {
                     </div>
                     
                     <form onSubmit={handleLend} className="space-y-4">
-                        {/* Borrower */}
                         <div className="bg-stone-50 dark:bg-slate-800 p-4 rounded-xl space-y-3 border border-stone-100 dark:border-slate-700">
                             <label className="text-xs font-bold uppercase text-stone-400 dark:text-slate-500">Borrower</label>
                             <select 
@@ -141,7 +149,6 @@ export default function Debts() {
                             )}
                         </div>
 
-                        {/* Amount & Date */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-bold uppercase text-stone-400 dark:text-slate-500">Amount</label>
@@ -153,7 +160,6 @@ export default function Debts() {
                             </div>
                         </div>
 
-                        {/* Interest Section */}
                         <div className="grid grid-cols-2 gap-4 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
                              <div className="col-span-2 flex items-center gap-2 mb-1">
                                  <TrendingUp size={14} className="text-indigo-600 dark:text-indigo-400" />
@@ -169,7 +175,6 @@ export default function Debts() {
                              </div>
                         </div>
 
-                        {/* Due Date & Reason */}
                         <div className="grid grid-cols-2 gap-4">
                              <div>
                                 <label className="text-xs font-bold uppercase text-stone-400 dark:text-slate-500">Due Date</label>
@@ -191,6 +196,15 @@ export default function Debts() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {all_borrowers?.map((b: Borrower) => (
                 <div key={b.id} onClick={() => openLedger(b)} className="group bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-stone-50 dark:border-slate-800 shadow-sm hover:shadow-md transition cursor-pointer relative overflow-hidden">
+                     
+                     <button 
+                         onClick={(e) => deleteBorrower(e, b.id)} 
+                         className="absolute top-4 right-4 p-2 bg-stone-100 dark:bg-slate-800 text-stone-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                         title="Delete Borrower"
+                     >
+                         <Trash2 size={16} />
+                     </button>
+
                      <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-stone-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-stone-500 dark:text-slate-400 font-bold text-lg border border-stone-200 dark:border-slate-700 relative">
@@ -204,9 +218,6 @@ export default function Debts() {
                                     {new Date(b.last_activity).toLocaleDateString()}
                                 </p>
                             </div>
-                        </div>
-                        <div className="p-2 bg-stone-50 dark:bg-slate-800 rounded-full text-stone-300 dark:text-slate-600 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition">
-                            <ArrowUpRight size={20} />
                         </div>
                      </div>
                      
@@ -254,10 +265,14 @@ function BorrowerLedger({ borrower, onClose }: { borrower: Borrower, onClose: ()
     const [showRepayForm, setShowRepayForm] = useState(false);
     const [repayData, setRepayData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], mode: 'UPI', debt_id: '' });
 
-    useEffect(() => {
+    const fetchData = () => {
         axios.get(`https://finance-tracker-q60v.onrender.com/debts/ledger/${borrower.id}`)
              .then(res => { setData(res.data); setLoading(false); })
              .catch(e => { console.error(e); alert("Failed to load ledger."); });
+    };
+
+    useEffect(() => {
+        fetchData();
     }, [borrower.id]);
 
     const handleRepay = async (e: React.FormEvent) => {
@@ -280,6 +295,14 @@ function BorrowerLedger({ borrower, onClose }: { borrower: Borrower, onClose: ()
             await axios.post(`https://finance-tracker-q60v.onrender.com/debts/mark-paid`, { debt_id: debtId, date: new Date().toISOString().split('T')[0] });
             onClose();
         } catch(e) { alert("Action failed"); }
+    };
+
+    const deleteTransaction = async (debtId: number) => {
+        if (!confirm("Delete this loan entry? This will adjust the balance automatically.")) return;
+        try {
+            await axios.delete(`https://finance-tracker-q60v.onrender.com/debts/${debtId}`);
+            fetchData();
+        } catch (e) { alert("Delete failed"); }
     };
 
     if(loading) return null;
@@ -339,6 +362,9 @@ function BorrowerLedger({ borrower, onClose }: { borrower: Borrower, onClose: ()
                                          </div>
                                      </div>
                                      <div className="mt-3 pt-3 border-t border-stone-50 dark:border-slate-800 flex justify-end gap-2">
+                                         <button onClick={() => deleteTransaction(debt.id)} className="px-3 py-1.5 bg-stone-100 dark:bg-slate-800 text-stone-500 hover:text-rose-500 text-xs font-bold rounded-lg flex items-center gap-1 transition-colors">
+                                             <Trash2 size={12} /> Delete
+                                         </button>
                                          <button onClick={() => markPaid(debt.id)} className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/40">
                                              <Check size={12} /> Mark Paid
                                          </button>

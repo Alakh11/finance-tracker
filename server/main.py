@@ -1179,6 +1179,57 @@ def mark_fully_paid(req: MarkPaidRequest):
     finally:
         conn.close()
 
+@app.delete("/debts/{id}")
+def delete_debt(id: int):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Get Debt Info to update borrower totals correctly
+        cursor.execute("SELECT * FROM debts WHERE id = %s", (id,))
+        debt = cursor.fetchone()
+        if not debt:
+            raise HTTPException(status_code=404, detail="Debt not found")
+            
+        borrower_id = debt['borrower_id']
+        amount_lent = float(debt['amount'])
+        amount_repaid = float(debt['amount_repaid'])
+        balance_to_reduce = amount_lent - amount_repaid
+        
+        # 2. Delete Debt (Cascades to repayments automatically via SQL Foreign Key)
+        cursor.execute("DELETE FROM debts WHERE id = %s", (id,))
+        
+        # 3. Update Borrower Stats
+        cursor.execute("""
+            UPDATE borrowers 
+            SET total_lent = total_lent - %s,
+                total_repaid = total_repaid - %s,
+                current_balance = current_balance - %s
+            WHERE id = %s
+        """, (amount_lent, amount_repaid, balance_to_reduce, borrower_id))
+        
+        conn.commit()
+        return {"message": "Debt deleted"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/debts/borrowers/{id}")
+def delete_borrower(id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Deleting borrower will cascade delete all debts and repayments
+        cursor.execute("DELETE FROM borrowers WHERE id = %s", (id,))
+        conn.commit()
+        return {"message": "Borrower deleted"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
 # ================= STARTUP (REQUIRED FOR RENDER) =================
 if __name__ == "__main__":
     import uvicorn
