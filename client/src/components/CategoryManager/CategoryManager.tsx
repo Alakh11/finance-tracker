@@ -181,9 +181,9 @@ export default function CategoryManager() {
                                 key={icon}
                                 type="button"
                                 onClick={() => setFormData({...formData, icon})}
-                                className={`w-10 h-10 rounded-xl text-xl transition-all flex items-center justify-center border ${
+                                className={`w-10 h-10 rounded-xl text-2xl transition-all flex items-center justify-center border ${
                                     formData.icon === icon 
-                                    ? 'bg-stone-800 dark:bg-blue-600 border-stone-800 dark:border-blue-600 scale-110 shadow-lg text-white' 
+                                    ? 'bg-stone-200 dark:bg-blue-900/50 border-stone-800 dark:border-blue-500 scale-110 shadow-sm' 
                                     : 'bg-white dark:bg-slate-800 border-stone-100 dark:border-slate-700 hover:bg-stone-50 dark:hover:bg-slate-700'
                                 }`}
                             >
@@ -260,7 +260,7 @@ function CategoryCard({ cat, onEdit, onDelete }: any) {
     return (
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-stone-50 dark:border-slate-800 flex justify-between items-center group shadow-sm hover:shadow-md transition">
             <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-2xl shadow-sm" style={{ backgroundColor: cat.color }}>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm" style={{ backgroundColor: cat.color }}>
                     {cat.icon || cat.name.charAt(0)}
                 </div>
                 <p className="font-bold text-stone-700 dark:text-slate-200">{cat.name}</p>

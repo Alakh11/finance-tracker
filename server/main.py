@@ -332,19 +332,19 @@ def calculate_interest(principal, rate, period, start_date_str):
 def create_default_categories(email: str, cursor):
     defaults = [
         # Income
-        ("Salary", "#10B981", "income", "Wallet"),
-        ("Freelance", "#3B82F6", "income", "Laptop"),
-        ("Investments", "#8B5CF6", "income", "TrendingUp"),
+        ("Salary", "#10B981", "income", "💰"),
+        ("Freelance", "#3B82F6", "income", "💻"),
+        ("Investments", "#8B5CF6", "income", "📈"),
         # Expenses
-        ("Food & Dining", "#EF4444", "expense", "Utensils"),
-        ("Transportation", "#F59E0B", "expense", "Car"),
-        ("Shopping", "#EC4899", "expense", "ShoppingBag"),
-        ("Utilities", "#6366F1", "expense", "Zap"),
-        ("Entertainment", "#8B5CF6", "expense", "Film"),
-        ("Health", "#10B981", "expense", "Activity"),
-        ("Education", "#3B82F6", "expense", "Book"),
-        ("Travel", "#F97316", "expense", "Plane"),
-        ("Rent/Housing", "#6366F1", "expense", "Home"),
+        ("Food & Dining", "#EF4444", "expense", "🍔"),
+        ("Transportation", "#F59E0B", "expense", "🚗"),
+        ("Shopping", "#EC4899", "expense", "🛍️"),
+        ("Utilities", "#6366F1", "expense", "💡"),
+        ("Entertainment", "#8B5CF6", "expense", "🎬"),
+        ("Health", "#10B981", "expense", "💊"),
+        ("Education", "#3B82F6", "expense", "🎓"),
+        ("Travel", "#F97316", "expense", "✈️"),
+        ("Rent/Housing", "#6366F1", "expense", "🏠"),
     ]
     
     query = "INSERT INTO categories (user_email, name, color, type, icon, is_default) VALUES (%s, %s, %s, %s, %s, TRUE)"
