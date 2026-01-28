@@ -84,8 +84,7 @@ export default function LoanTracker() {
           };
 
           if (editingId) {
-             await axios.delete(`${API_URL}/loans/${editingId}`);
-             await axios.post(`${API_URL}/loans`, payload);
+             await axios.put(`${API_URL}/loans/${editingId}`, payload);
           } else {
              await axios.post(`${API_URL}/loans`, payload);
           }

@@ -143,6 +143,14 @@ class LoanCreate(BaseModel):
     tenure_months: int
     start_date: str
 
+class LoanUpdate(BaseModel):
+    name: str
+    total_amount: float
+    interest_rate: float
+    tenure_months: int
+    start_date: str
+    
+
 # --- Helper Functions ---
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -860,6 +868,37 @@ def delete_loan(id: int):
     conn.commit()
     conn.close()
     return {"message": "Loan deleted"}
+
+app.put("/loans/{loan_id}")
+def update_loan(loan_id: int, loan: LoanUpdate):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        # Calculate new EMI
+        r = (loan.interest_rate / 12) / 100
+        n = loan.tenure_months
+        if r == 0:
+            emi = loan.total_amount / n
+        else:
+            emi = (loan.total_amount * r * ((1 + r) ** n)) / (((1 + r) ** n) - 1)
+
+        query = """
+            UPDATE loans 
+            SET name = %s, total_amount = %s, interest_rate = %s, 
+                tenure_months = %s, start_date = %s, emi_amount = %s
+            WHERE id = %s
+        """
+        cursor.execute(query, (
+            loan.name, loan.total_amount, loan.interest_rate, 
+            loan.tenure_months, loan.start_date, emi, loan_id
+        ))
+        conn.commit()
+        conn.close()
+        return {"message": "Loan updated successfully"}
+    except Exception as e:
+        logger.error(f"Update Loan Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ================= STARTUP (REQUIRED FOR RENDER) =================
 if __name__ == "__main__":
