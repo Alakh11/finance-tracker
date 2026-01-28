@@ -123,7 +123,7 @@ export default function AdminPanel() {
                       {filteredUsers.map((user: any) => (
                           <tr key={user.id} className="hover:bg-stone-50 dark:hover:bg-slate-800/50 transition">
                               <td className="p-5 flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-bold text-indigo-600">{user.name[0]}</div>
+                                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-bold text-indigo-600">{user.profile_pic ? <img src={user.profile_pic} className="w-full h-full rounded-full" /> : user.name.charAt(0)}</div>
                                   <div><p className="font-bold text-stone-800 dark:text-white">{user.name}</p><p className="text-xs text-stone-400">ID: {user.id}</p></div>
                               </td>
                               <td className="p-5">
