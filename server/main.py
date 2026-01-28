@@ -869,15 +869,15 @@ def delete_loan(id: int):
     conn.close()
     return {"message": "Loan deleted"}
 
-app.put("/loans/{loan_id}")
+@app.put("/loans/{loan_id}")
 def update_loan(loan_id: int, loan: LoanUpdate):
     try:
         conn = get_db()
         cursor = conn.cursor()
         
-        # Calculate new EMI
         r = (loan.interest_rate / 12) / 100
         n = loan.tenure_months
+        
         if r == 0:
             emi = loan.total_amount / n
         else:
@@ -890,8 +890,13 @@ def update_loan(loan_id: int, loan: LoanUpdate):
             WHERE id = %s
         """
         cursor.execute(query, (
-            loan.name, loan.total_amount, loan.interest_rate, 
-            loan.tenure_months, loan.start_date, emi, loan_id
+            loan.name, 
+            loan.total_amount, 
+            loan.interest_rate, 
+            loan.tenure_months, 
+            loan.start_date, 
+            emi, 
+            loan_id
         ))
         conn.commit()
         conn.close()
