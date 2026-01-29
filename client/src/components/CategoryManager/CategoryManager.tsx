@@ -275,15 +275,13 @@ function CategoryCard({ cat, onEdit, onDelete }: any) {
                     <Pencil size={18} />
                 </button>
                 
-                {!cat.is_default && (
-                    <button 
-                        onClick={() => onDelete(cat.id)} 
-                        className="p-2 text-stone-300 hover:text-rose-500 hover:bg-rose-50 dark:text-slate-600 dark:hover:text-rose-400 dark:hover:bg-rose-900/20 rounded-lg transition"
-                        title="Delete Category"
-                    >
-                        <Trash2 size={18} />
-                    </button>
-                )}
+                <button 
+                    onClick={() => onDelete(cat.id)} 
+                    className="p-2 text-stone-300 hover:text-rose-500 hover:bg-rose-50 dark:text-slate-600 dark:hover:text-rose-400 dark:hover:bg-rose-900/20 rounded-lg transition"
+                    title="Delete Category"
+                >
+                    <Trash2 size={18} />
+                </button>
             </div>
         </div>
     )
