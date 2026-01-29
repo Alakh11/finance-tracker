@@ -27,7 +27,7 @@
 
 | **Dashboard (Light)** | **Dark Mode** |
 |:---:|:---:|
-| <img src="https://alakh11.github.io/finance-tracker/dashboard" alt="Dashboard" width="100%"> | <img src="https://placehold.co/600x400/1e293b/FFF?text=Dark+Mode" alt="Dark Mode" width="100%"> |
+| <img src="https://placehold.co/600x400/F3F4F6/333?text=Dashboard+UI" alt="Dashboard" width="100%"> | <img src="https://placehold.co/600x400/1e293b/FFF?text=Dark+Mode" alt="Dark Mode" width="100%"> |
 
 ---
 
