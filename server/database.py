@@ -16,7 +16,7 @@ def get_db():
             port=os.getenv("DB_PORT"),
             database=os.getenv("DB_NAME"),
             ssl_verify_cert=False,
-            ssl_verify_identity=False
+            ssl_verify_identity=False,
             ssl_ca="/etc/ssl/certs/ca-certificates.crt",
             ssl_disabled=False
         )
