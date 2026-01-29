@@ -82,7 +82,6 @@ export default function AdminPanel() {
         {/* Stats Row */}
         <div className="flex gap-4">
             <div className="bg-white dark:bg-slate-900 px-5 py-3 rounded-2xl border border-stone-100 dark:border-slate-800 shadow-sm min-w-[140px]">
-                {/* 1. USE 'Users' Icon */}
                 <div className="flex items-center gap-2 mb-1">
                     <Users size={14} className="text-stone-400" />
                     <p className="text-xs font-bold uppercase text-stone-400">Total Users</p>
@@ -120,10 +119,22 @@ export default function AdminPanel() {
                       <tr><th className="p-5">User</th><th className="p-5">Contact / Status</th><th className="p-5 text-center">Actions</th></tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100 dark:divide-slate-800">
-                      {filteredUsers.map((user: any) => (
+                      {filteredUsers.map((user: any) => {
+                          const isUrl = user.profile_pic && user.profile_pic.startsWith('http');
+                          const isEmoji = user.profile_pic && !isUrl;
+                          
+                          return (
                           <tr key={user.id} className="hover:bg-stone-50 dark:hover:bg-slate-800/50 transition">
                               <td className="p-5 flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-bold text-indigo-600">{user.profile_pic ? <img src={user.profile_pic} className="w-full h-full rounded-full" /> : user.name.charAt(0)}</div>
+                                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-bold text-indigo-600 overflow-hidden text-lg border border-indigo-200 dark:border-indigo-800">
+                                      {isUrl ? (
+                                          <img src={user.profile_pic} className="w-full h-full object-cover" alt={user.name} />
+                                      ) : isEmoji ? (
+                                          <span>{user.profile_pic}</span>
+                                      ) : (
+                                          user.name.charAt(0).toUpperCase()
+                                      )}
+                                  </div>
                                   <div><p className="font-bold text-stone-800 dark:text-white">{user.name}</p><p className="text-xs text-stone-400">ID: {user.id}</p></div>
                               </td>
                               <td className="p-5">
@@ -134,7 +145,6 @@ export default function AdminPanel() {
                                             <CheckCircle2 size={10} /> Verified
                                         </span>
                                     ) : (
-                                        // 2. USE 'XCircle' Icon
                                         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full dark:bg-rose-900/20 dark:text-rose-400">
                                             <XCircle size={10} /> Unverified
                                         </span>
@@ -147,7 +157,7 @@ export default function AdminPanel() {
                                   <button onClick={() => handleDelete(user.id)} className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400" title="Delete User"><Trash2 size={16} /></button>
                               </td>
                           </tr>
-                      ))}
+                      )})}
                   </tbody>
               </table>
           </div>
@@ -178,7 +188,6 @@ export default function AdminPanel() {
                   </div>
                   <div className="flex gap-3 mt-8">
                       <button onClick={() => { setIsCreating(false); setEditingUser(null); }} className="flex-1 py-3 bg-stone-100 rounded-xl font-bold text-stone-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300">Cancel</button>
-                      {/* 3. USE 'Save' Icon */}
                       <button onClick={handleSaveUser} className="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white hover:bg-indigo-700 flex justify-center items-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none">
                           <Save size={18} /> Save
                       </button>
