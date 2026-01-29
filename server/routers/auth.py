@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
-from schemas import UserRegister, UserLogin, GoogleAuth, ResetPassword
-from security import pwd_context, create_access_token
+from schemas import UserRegister, UserLogin, GoogleAuth, ResetPassword, UserUpdateProfile, UserChangePassword
+from security import pwd_context, create_access_token, get_current_user
 from utils import create_default_categories
 import logging
 
@@ -178,5 +178,52 @@ def reset_password(data: ResetPassword):
             raise e
         logger.error(f"Reset Error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        conn.close()
+
+# --- 1. Update Profile (Name & Icon) ---
+@router.put("/profile")
+def update_profile(data: UserUpdateProfile, email: str = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE users SET name = %s, profile_pic = %s WHERE email = %s", (data.name, data.profile_pic, email))
+        conn.commit()
+        return {"message": "Profile updated successfully"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+# --- 2. Change Password ---
+@router.put("/password")
+def change_password(data: UserChangePassword, email: str = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Get current password hash
+        cursor.execute("SELECT password_hash FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # 2. Verify Old Password
+        if not pwd_context.verify(data.old_password, user['password_hash']):
+            raise HTTPException(status_code=400, detail="Incorrect old password")
+            
+        # 3. Hash New Password & Update
+        new_hash = pwd_context.hash(data.new_password)
+        cursor.execute("UPDATE users SET password_hash = %s WHERE email = %s", (new_hash, email))
+        
+        conn.commit()
+        return {"message": "Password changed successfully"}
+    except Exception as e:
+        conn.rollback()
+        # Re-raise HTTP exceptions (like 400 Incorrect Password)
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

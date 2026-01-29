@@ -21,6 +21,7 @@ import ErrorPage from './components/Error/ErrorPage';
 import LoanTracker from './components/Loans/LoanTracker';
 import Debts from './components/Debts/Debts';
 import AdminPanel from './components/Admin/AdminPanel';
+import ProfileSettings from './components/Settings/ProfileSettings';
 
 // Context for the router (User is required)
 interface RouterContext {
@@ -214,6 +215,12 @@ const adminRoute = createRoute({
   component: AdminPanel,
 });
 
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'settings',
+  component: ProfileSettings,
+});
+
 const notFoundRoute = new NotFoundRoute({
   getParentRoute: () => rootRoute,
   component: NotFound,
@@ -233,6 +240,7 @@ const routeTree = rootRoute.addChildren([
   loansRoute,
   debtsRoute,
   adminRoute,
+  settingsRoute,
 ]);
 
 export const router = createRouter({

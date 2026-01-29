@@ -26,6 +26,14 @@ class ResetPassword(BaseModel):
     name: str
     new_password: str
 
+class UserUpdateProfile(BaseModel):
+    name: str
+    profile_pic: str
+
+class UserChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
 # Admin Models
 class AdminUpdateUser(BaseModel):
     name: str
