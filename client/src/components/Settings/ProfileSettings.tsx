@@ -73,6 +73,7 @@ export default function ProfileSettings() {
           setLoading(false);
       }
   };
+  const isUrl = profileData.profile_pic.startsWith('http');
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-fade-in pb-20">
@@ -101,8 +102,16 @@ export default function ProfileSettings() {
                     <label className="text-xs font-bold text-stone-400 uppercase ml-1 mb-2 block">Profile Icon</label>
                     <div className="flex items-center gap-4">
                         <div className="relative">
-                            <div className="w-20 h-20 rounded-full bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-4xl border-2 border-dashed border-stone-200 dark:border-slate-700">
-                                {profileData.profile_pic}
+                            <div className="w-20 h-20 rounded-full bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-4xl border-2 border-dashed border-stone-200 dark:border-slate-700 overflow-hidden">
+                                {isUrl ? (
+                                    <img 
+                                        src={profileData.profile_pic} 
+                                        alt="Profile" 
+                                        className="w-full h-full object-cover" 
+                                    />
+                                ) : (
+                                    profileData.profile_pic
+                                )}
                             </div>
                             <div className="absolute -bottom-1 -right-1 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm">
                                 <Camera size={14} />
