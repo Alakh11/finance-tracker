@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useLoaderData, useRouter } from '@tanstack/react-router';
 import axios from 'axios';
 import { 
-  Search, Filter, X, Calendar, IndianRupee, Tag, Trash2, Repeat, CreditCard 
+  Search, Filter, X, Calendar, IndianRupee, Tag, Trash2, Repeat, CreditCard, Edit, Save 
 } from 'lucide-react';
 import type { Transaction } from '../../types';
+import { CategoryIcon } from '../Icons/IconHelper';
 
 export default function Transactions() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingTx, setEditingTx] = useState<any | null>(null);
 
   // Filter State
   const [filters, setFilters] = useState({
@@ -79,43 +81,109 @@ export default function Transactions() {
       }
   };
 
+  const handleUpdate = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if(!editingTx) return;
+
+      try {
+          await axios.put(`${API_URL}/transactions/${editingTx.id}`, {
+              user_email: user.email,
+              amount: Number(editingTx.amount),
+              type: editingTx.type,
+              category: editingTx.category_name, 
+              date: editingTx.date.split('T')[0],
+              payment_mode: editingTx.payment_mode,
+              note: editingTx.note,
+              is_recurring: Boolean(editingTx.is_recurring)
+          });
+          
+          setEditingTx(null);
+          router.invalidate();
+          applyFilters();
+          alert("Transaction Updated!");
+      } catch (e) {
+          alert("Failed to update transaction");
+      }
+  };
+
   const inputBaseClass = "w-full pl-10 pr-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-stone-800 dark:focus:ring-blue-500 outline-none bg-white dark:bg-slate-800 text-stone-700 dark:text-white";
   const labelClass = "text-xs font-bold text-stone-500 dark:text-slate-400 uppercase";
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
       
+      {editingTx && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md p-6 rounded-[2rem] shadow-2xl border border-stone-100 dark:border-slate-800">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-bold text-stone-800 dark:text-white flex items-center gap-2">
+                          <Edit className="w-5 h-5 text-blue-600" /> Edit Transaction
+                      </h3>
+                      <button onClick={() => setEditingTx(null)} className="p-2 hover:bg-stone-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+                  </div>
+                  
+                  <form onSubmit={handleUpdate} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className={labelClass}>Amount</label>
+                              <input type="number" className="w-full p-3 bg-stone-50 dark:bg-slate-800 rounded-xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={editingTx.amount} onChange={e => setEditingTx({...editingTx, amount: e.target.value})} required />
+                          </div>
+                          <div>
+                              <label className={labelClass}>Date</label>
+                              <input type="date" className="w-full p-3 bg-stone-50 dark:bg-slate-800 rounded-xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={editingTx.date.split('T')[0]} onChange={e => setEditingTx({...editingTx, date: e.target.value})} required />
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className={labelClass}>Note / Description</label>
+                          <input type="text" className="w-full p-3 bg-stone-50 dark:bg-slate-800 rounded-xl font-medium border-2 border-transparent focus:border-blue-500 outline-none" value={editingTx.note || ''} onChange={e => setEditingTx({...editingTx, note: e.target.value})} required />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className={labelClass}>Category</label>
+                              <select className="w-full p-3 bg-stone-50 dark:bg-slate-800 rounded-xl font-medium outline-none" value={editingTx.category_name} onChange={e => setEditingTx({...editingTx, category_name: e.target.value})}>
+                                  {categories.map((c: any) => (
+                                      <option key={c.id} value={c.name}>{c.icon} {c.name}</option>
+                                  ))}
+                              </select>
+                          </div>
+                          <div>
+                              <label className={labelClass}>Payment Mode</label>
+                              <select className="w-full p-3 bg-stone-50 dark:bg-slate-800 rounded-xl font-medium outline-none" value={editingTx.payment_mode} onChange={e => setEditingTx({...editingTx, payment_mode: e.target.value})}>
+                                  <option value="UPI">UPI</option>
+                                  <option value="Card">Card</option>
+                                  <option value="Cash">Cash</option>
+                                  <option value="Net Banking">Net Banking</option>
+                              </select>
+                          </div>
+                      </div>
+
+                      <div className="flex bg-stone-100 dark:bg-slate-800 p-1 rounded-xl">
+                          <button type="button" onClick={() => setEditingTx({...editingTx, type: 'expense'})} className={`flex-1 py-2 rounded-lg font-bold text-sm ${editingTx.type === 'expense' ? 'bg-white dark:bg-slate-700 shadow-sm text-rose-500' : 'text-stone-400'}`}>Expense</button>
+                          <button type="button" onClick={() => setEditingTx({...editingTx, type: 'income'})} className={`flex-1 py-2 rounded-lg font-bold text-sm ${editingTx.type === 'income' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-500' : 'text-stone-400'}`}>Income</button>
+                      </div>
+
+                      <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none transition">
+                          <Save size={18} /> Save Changes
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
+
       {/* --- Header & Search --- */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <h2 className="text-3xl font-bold text-stone-800 dark:text-white">Transactions</h2>
         
         <div className="flex gap-2">
            <div className="relative flex-1 md:w-64">
-               <button 
-                    onClick={applyFilters}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-800 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
-                >
+               <button onClick={applyFilters} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-800 dark:text-slate-500 transition-colors">
                     <Search className="w-4 h-4" />
                 </button>
-                
-               <input 
-                  type="text" 
-                  name="search"
-                  placeholder="Search note, amount, mode..." 
-                  value={filters.search}
-                  onChange={handleFilterChange}
-                  onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-stone-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-stone-800 dark:focus:ring-blue-500"
-               />
+               <input type="text" name="search" placeholder="Search note, amount, mode..." value={filters.search} onChange={handleFilterChange} onKeyDown={(e) => e.key === 'Enter' && applyFilters()} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-stone-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-stone-800 dark:focus:ring-blue-500" />
            </div>
-           <button 
-             onClick={() => setIsFilterOpen(!isFilterOpen)}
-             className={`p-2.5 rounded-xl border transition-colors ${
-                isFilterOpen 
-                ? 'bg-stone-800 text-white border-stone-800 dark:bg-blue-600 dark:border-blue-600' 
-                : 'bg-white dark:bg-slate-900 border-stone-200 dark:border-slate-700 text-stone-600 dark:text-slate-400 hover:bg-stone-50 dark:hover:bg-slate-800'
-             }`}
-           >
+           <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={`p-2.5 rounded-xl border transition-colors ${isFilterOpen ? 'bg-stone-800 text-white border-stone-800 dark:bg-blue-600' : 'bg-white dark:bg-slate-900 border-stone-200 dark:border-slate-700 text-stone-600 dark:text-slate-400'}`}>
              <Filter className="w-5 h-5" />
            </button>
         </div>
@@ -125,8 +193,6 @@ export default function Transactions() {
       {isFilterOpen && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] shadow-xl shadow-stone-200/50 dark:shadow-none border border-stone-100 dark:border-slate-800 animate-in slide-in-from-top-2">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                
-                {/* 1. Date Inputs */}
                 <div className="space-y-1">
                     <label className={labelClass}>From Date</label>
                     <div className="relative">
@@ -141,8 +207,6 @@ export default function Transactions() {
                         <input type="date" name="end_date" value={filters.end_date} onChange={handleFilterChange} className={inputBaseClass} />
                     </div>
                 </div>
-
-                {/* 2. Amount Inputs */}
                 <div className="space-y-1">
                     <label className={labelClass}>Min Amount</label>
                     <div className="relative">
@@ -157,8 +221,6 @@ export default function Transactions() {
                         <input type="number" name="max_amount" placeholder="∞" value={filters.max_amount} onChange={handleFilterChange} className={inputBaseClass} />
                     </div>
                 </div>
-
-                {/* 3. Category Dropdown */}
                 <div className="md:col-span-1 lg:col-span-2 space-y-1">
                     <label className={labelClass}>Category</label>
                     <div className="relative">
@@ -171,8 +233,6 @@ export default function Transactions() {
                         </select>
                     </div>
                 </div>
-
-                {/* 4. Payment Mode Dropdown */}
                 <div className="md:col-span-1 lg:col-span-2 space-y-1">
                     <label className={labelClass}>Payment Mode</label>
                     <div className="relative">
@@ -187,14 +247,9 @@ export default function Transactions() {
                     </div>
                 </div>
             </div>
-
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100 dark:border-slate-800">
-                <button onClick={clearFilters} className="px-4 py-2 text-sm font-bold text-stone-500 hover:text-stone-800 dark:text-slate-400 dark:hover:text-white flex items-center gap-2">
-                    <X className="w-4 h-4" /> Clear
-                </button>
-                <button onClick={applyFilters} disabled={loading} className="px-6 py-2 bg-stone-900 dark:bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-stone-800 dark:hover:bg-blue-500 transition disabled:opacity-50">
-                    {loading ? 'Filtering...' : 'Apply Filters'}
-                </button>
+                <button onClick={clearFilters} className="px-4 py-2 text-sm font-bold text-stone-500 hover:text-stone-800 dark:text-slate-400 dark:hover:text-white flex items-center gap-2"><X className="w-4 h-4" /> Clear</button>
+                <button onClick={applyFilters} disabled={loading} className="px-6 py-2 bg-stone-900 dark:bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-stone-800 transition disabled:opacity-50">{loading ? 'Filtering...' : 'Apply Filters'}</button>
             </div>
         </div>
       )}
@@ -202,7 +257,7 @@ export default function Transactions() {
       {/* --- TABLE UI --- */}
       <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-stone-50 dark:border-slate-800 overflow-hidden transition-colors">
         {loading ? (
-             <div className="p-10 text-center text-stone-400 dark:text-slate-500">Loading...</div>
+             <div className="p-10 text-center text-stone-400">Loading...</div>
         ) : (
           <div className="overflow-x-auto">
               <table className="w-full text-left min-w-[900px]">
@@ -225,7 +280,7 @@ export default function Transactions() {
                         <tr key={t.id} className="hover:bg-stone-50/50 dark:hover:bg-slate-800/50 transition-colors group">
                             <td className="p-6 whitespace-nowrap">
                                 <span className="px-3 py-1 rounded-full bg-stone-100 dark:bg-slate-800 text-xs font-bold text-stone-500 dark:text-slate-300 flex items-center gap-2 w-fit">
-                                    {t.category_name || t.category || 'Uncategorized'}
+                                    <CategoryIcon iconName={t.category_icon || 'Tag'} size={14} /> {t.category_name || t.category || 'Uncategorized'}
                                 </span>
                             </td>
                             <td className="p-6 font-bold text-stone-700 dark:text-slate-200 min-w-[200px]">
@@ -239,24 +294,19 @@ export default function Transactions() {
                                     {t.tags && <span className="text-xs font-normal text-blue-500">#{t.tags}</span>}
                                 </div>
                             </td>
-                            <td className="p-6 text-stone-500 dark:text-slate-400 text-sm whitespace-nowrap">
-                                {new Date(t.date).toLocaleDateString()}
-                            </td>
+                            <td className="p-6 text-stone-500 dark:text-slate-400 text-sm whitespace-nowrap">{new Date(t.date).toLocaleDateString()}</td>
                             <td className="p-6 text-stone-500 dark:text-slate-400 text-sm whitespace-nowrap font-medium">
-                                <div className="flex items-center gap-2">
-                                    <CreditCard className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500" />
-                                    {t.payment_mode || 'Cash'}
-                                </div>
+                                <div className="flex items-center gap-2"><CreditCard className="w-3.5 h-3.5 text-stone-400" /> {t.payment_mode || 'Cash'}</div>
                             </td>
                             <td className="p-6 text-right font-bold flex justify-end items-center gap-4 whitespace-nowrap">
                                 <span className={t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-800 dark:text-slate-200'}>
                                     {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString('en-IN')}
                                 </span>
+                                <button onClick={() => setEditingTx(t)} className="text-stone-300 hover:text-blue-500 dark:text-slate-600 dark:hover:text-blue-400 transition opacity-100 md:opacity-0 group-hover:opacity-100" title="Edit">
+                                    <Edit size={18} />
+                                </button>
                                 <button 
-                                    onClick={() => handleDelete(t.id)} 
-                                    className="text-stone-300 hover:text-rose-500 dark:text-slate-600 dark:hover:text-rose-400 transition opacity-100 md:opacity-0 group-hover:opacity-100"
-                                    title="Delete"
-                                >
+                                onClick={() => handleDelete(t.id)} className="text-stone-300 hover:text-rose-500 dark:text-slate-600 dark:hover:text-rose-400 transition opacity-100 md:opacity-0 group-hover:opacity-100" title="Delete">
                                     <Trash2 size={18} />
                                 </button>
                             </td>
