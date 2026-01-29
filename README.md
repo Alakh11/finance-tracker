@@ -9,7 +9,7 @@
   <p align="center">
     <strong>The Ultimate Personal Finance Manager built for the modern web.</strong>
     <br />
-    Manage income, expenses, loans, debts, and savings goals with a beautiful "Creamy Cake" Soft UI.
+    Manage income, expenses, loans, debts, and savings goals with a beautiful UI.
   </p>
 
   <p align="center">
