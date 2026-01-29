@@ -275,3 +275,30 @@ def get_budget_history(email: str):
     except Exception as e:
         print(f"HISTORY ERROR: {e}") 
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.put("/transactions/{id}")
+def update_transaction(id: int, tx: TransactionCreate):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM categories WHERE name = %s AND user_email = %s AND type = %s", (tx.category, tx.user_email, tx.type))
+        result = cursor.fetchone()
+        if not result:
+             cursor.execute("SELECT id FROM categories WHERE user_email = %s AND type = %s LIMIT 1", (tx.user_email, tx.type))
+             result = cursor.fetchone()
+        cat_id = result[0] if result else 1
+
+        query = """
+            UPDATE transactions 
+            SET amount = %s, type = %s, category_id = %s, 
+                payment_mode = %s, date = %s, note = %s, is_recurring = %s 
+            WHERE id = %s
+        """
+        cursor.execute(query, (tx.amount, tx.type, cat_id, tx.payment_mode, tx.date, tx.note, tx.is_recurring, id))
+        conn.commit()
+        return {"message": "Transaction updated"}
+    except Exception as e:
+        logger.error(f"Update Tx Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
