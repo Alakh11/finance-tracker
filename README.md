@@ -100,6 +100,7 @@ The project uses a clean, modular architecture separating concerns for scalabili
     ├── schemas.py          # Pydantic Data Models (Request/Response)
     ├── security.py         # JWT Token Generation & Hashing
     └── utils.py            # Helper Functions
+```
 
 ## 🚀 Getting Started
 
@@ -118,17 +119,27 @@ Before you begin, ensure you have the following installed:
 ```bash
 git clone [https://github.com/Alakh11/finance-tracker.git](https://github.com/Alakh11/finance-tracker.git)
 cd Finance-Tracker
+```
 
 🤝 Contributing
 Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
 
 Fork the Project
 
-Create your Feature Branch (git checkout -b feature/AmazingFeature)
+Create your Feature Branch 
+```bash
+git checkout -b feature/AmazingFeature
+```
 
-Commit your Changes (git commit -m 'Add some AmazingFeature')
+Commit your Changes 
+```bash
+git commit -m 'Add some AmazingFeature'
+```
 
-Push to the Branch (git push origin feature/AmazingFeature)
+Push to the Branch 
+```bash
+git push origin feature/AmazingFeature
+```
 
 Open a Pull Request
 
@@ -137,4 +148,5 @@ Distributed under the MIT License. See LICENSE for more information.
 
 <div align="center"> <p>Made with ❤️ by <strong>Alakh Chaturvedi</strong></p>
 
-<a href="https://www.google.com/search?q=https://github.com/Alakh11"> <img src="https://www.google.com/search?q=https://img.shields.io/github/followers/Alakh11%3Fstyle%3Dsocial" alt="GitHub Followers" /> </a> </div>
+
+<a href="https://github.com/Alakh11"> <img src="https://img.shields.io/github/followers/Alakh11" alt="GitHub" /> </a> </div>
