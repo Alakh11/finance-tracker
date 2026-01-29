@@ -7,6 +7,27 @@ import {
 import icon from '../assets/iconNew.png';
 import { useTheme } from '../context/ThemeContext';
 
+const UserAvatar = ({ src, name, className }: { src?: string, name: string, className?: string }) => {
+  const isUrl = src?.startsWith('http');
+  const isEmoji = src && !isUrl;
+
+  if (isEmoji) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-stone-100 dark:bg-slate-800 text-xl border border-stone-200 dark:border-slate-700 select-none`}>
+        {src}
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={src || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`} 
+      alt="Profile" 
+      className={`${className} object-cover`} 
+    />
+  );
+};
+
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -83,14 +104,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border border-white shadow-sm dark:from-slate-800 dark:to-slate-900 dark:border-slate-700 relative">
                    <Link 
                       to="/settings" 
-                      className="absolute top-4 right-4 p-1.5 bg-white text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-stone-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-white transition shadow-sm"
+                      className="absolute top-4 right-4 p-1.5 bg-white text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-stone-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-white transition shadow-sm z-10"
                       title="Edit Profile"
                    >
                       <UserPen size={14} />
                    </Link>
 
                    <div className="flex items-center gap-3 mb-4 pr-8">
-                      <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} alt="Profile" className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-600 shadow-sm" />
+                      <UserAvatar 
+                        src={user.picture} 
+                        name={user.name} 
+                        className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-600 shadow-sm"
+                      />
                       <div className="overflow-hidden">
                         <p className="text-sm font-bold text-slate-700 dark:text-white truncate">{user.name}</p>
                         <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{user.email}</p>
@@ -141,7 +166,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               
               <div className="flex items-center justify-between mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
                   <div className="flex items-center gap-3">
-                    <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} className="w-12 h-12 rounded-full" />
+                    <UserAvatar 
+                      src={user.picture} 
+                      name={user.name} 
+                      className="w-12 h-12 rounded-full"
+                    />
                     <div>
                         <p className="text-sm font-bold text-slate-800 dark:text-white">{user.name}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate w-24">{user.email}</p>
