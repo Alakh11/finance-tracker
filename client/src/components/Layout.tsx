@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useRouter } from '@tanstack/react-router';
 import { 
   LayoutDashboard, PieChart, Wallet, LogOut, Menu, X, Target, Shield, 
-  Repeat, Settings, ChevronRight, Trophy, Sun, Moon, ReceiptIndianRupee, HandCoins
+  Repeat, Settings, ChevronRight, Trophy, Sun, Moon, ReceiptIndianRupee, HandCoins, UserPen
 } from 'lucide-react';
 import icon from '../assets/iconNew.png';
 import { useTheme } from '../context/ThemeContext';
@@ -20,13 +20,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin Panel', icon: Shield }] : []),
     { to: '/transactions', label: 'Transactions', icon: Wallet },
-    { to: '/recurring', label: 'Recurring Bills', icon: Repeat },
     { to: '/budget', label: 'Budgets', icon: Target },
     { to: '/goals', label: 'Savings Goals', icon: Trophy },
-    { to: '/analytics', label: 'Analytics', icon: PieChart },
+    { to: '/debts', label: 'Debts Tracker', icon: HandCoins },
     { to: '/loans', label: 'Loan Tracker', icon: ReceiptIndianRupee },
-    { to: '/debts', label: 'Money Lent', icon: HandCoins },
-    { to: '/categories', label: 'Settings', icon: Settings },
+    { to: '/analytics', label: 'Analytics', icon: PieChart },
+    { to: '/recurring', label: 'Recurring Bills', icon: Repeat },
+    { to: '/categories', label: 'Categories', icon: Settings },
   ];
 
   const NavItem = ({ item, onClick }: any) => {
@@ -80,8 +80,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </nav>
 
             <div className="p-4 mt-auto space-y-2">
-               <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border border-white shadow-sm dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
-                   <div className="flex items-center gap-3 mb-4">
+               <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border border-white shadow-sm dark:from-slate-800 dark:to-slate-900 dark:border-slate-700 relative">
+                   <Link 
+                      to="/settings" 
+                      className="absolute top-4 right-4 p-1.5 bg-white text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-stone-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-white transition shadow-sm"
+                      title="Edit Profile"
+                   >
+                      <UserPen size={14} />
+                   </Link>
+
+                   <div className="flex items-center gap-3 mb-4 pr-8">
                       <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} alt="Profile" className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-600 shadow-sm" />
                       <div className="overflow-hidden">
                         <p className="text-sm font-bold text-slate-700 dark:text-white truncate">{user.name}</p>
@@ -131,12 +139,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-100 rounded-full dark:bg-slate-800 dark:text-white"><X className="w-5 h-5" /></button>
               </div>
               
-              <div className="flex items-center gap-3 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
-                  <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} className="w-12 h-12 rounded-full" />
-                  <div>
-                    <p className="text-sm font-bold text-slate-800 dark:text-white">{user.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+              <div className="flex items-center justify-between mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <img src={user.picture || "https://ui-avatars.com/api/?name=" + user.name} className="w-12 h-12 rounded-full" />
+                    <div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-white">{user.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate w-24">{user.email}</p>
+                    </div>
                   </div>
+                  <Link 
+                    to="/settings" 
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="p-2 bg-white text-stone-400 border border-stone-200 rounded-lg hover:text-indigo-600 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-400"
+                  >
+                     <UserPen size={16} />
+                  </Link>
               </div>
 
               <nav className="space-y-2 flex-1 overflow-y-auto">
@@ -146,7 +163,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               </nav>
 
               <div className="mt-6 space-y-3">
-                 {/* Removed bottom Theme Toggle since it's now in the header */}
                  <button onClick={handleLogout} className="w-full py-3.5 text-rose-600 font-bold bg-rose-50 rounded-2xl flex items-center justify-center gap-2 dark:bg-rose-900/20 dark:text-rose-400">
                     <LogOut size={18} /> Sign Out
                  </button>
