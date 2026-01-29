@@ -1,6 +1,6 @@
 import { 
   Wallet, Laptop, TrendingUp, Utensils, Car, ShoppingBag, 
-  Zap, Film, Activity, Book, Plane, Home, HelpCircle, 
+  Zap, Film, Activity, Book, Plane, Home, 
   Briefcase, Coffee, Gift, Landmark, Smartphone, Wifi, 
   Dumbbell, GraduationCap, Globe, AlertCircle, PiggyBank, Tag
 } from 'lucide-react';
@@ -23,8 +23,26 @@ interface IconProps {
 }
 
 export const CategoryIcon = ({ iconName, size = 20, className = "" }: IconProps) => {
-  const IconComponent = iconMap[iconName] || HelpCircle;
-  return <IconComponent size={size} className={className} />;
+  const IconComponent = iconMap[iconName];
+
+  if (IconComponent) {
+    return <IconComponent size={size} className={className} />;
+  }
+
+  return (
+    <span 
+      className={`flex items-center justify-center ${className}`}
+      style={{ 
+        fontSize: size, 
+        width: size, 
+        height: size, 
+        lineHeight: '1em',
+        fontStyle: 'normal' 
+      }}
+    >
+      {iconName || '?'}
+    </span>
+  );
 };
 
 export const availableIcons = Object.keys(iconMap);
