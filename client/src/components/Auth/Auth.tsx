@@ -18,7 +18,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const API_URL = "https://finance-tracker-q60v.onrender.com";
+  const API_URL = "https://finance-tracker-5kjb.onrender.com";
 
   const validateForm = () => {
     if (method === 'mobile') {

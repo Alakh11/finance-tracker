@@ -21,9 +21,9 @@
   </p>
   
   <h3>
-    <a href="https://finance-tracker-q60v.onrender.com/docs">📚 Swagger UI Docs</a>
+    <a href="https://finance-tracker-5kjb.onrender.com/docs">📚 Swagger UI Docs</a>
     <span> | </span>
-    <a href="https://finance-tracker-q60v.onrender.com/redoc">📘 ReDoc</a>
+    <a href="https://finance-tracker-5kjb.onrender.com/redoc">📘 ReDoc</a>
   </h3>
 </div>
 

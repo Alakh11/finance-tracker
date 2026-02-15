@@ -28,7 +28,7 @@ export default function Goals() {
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const API_URL = "https://finance-tracker-q60v.onrender.com";
+  const API_URL = "https://finance-tracker-5kjb.onrender.com";
 
   useEffect(() => {
       if (activeAction && inputRef.current) {

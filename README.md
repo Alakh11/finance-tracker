@@ -16,7 +16,7 @@
     <a href="https://alakh11.github.io/finance-tracker/">
       <img src="https://img.shields.io/badge/🔗_Live_Demo-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
     </a>
-    <a href="https://finance-tracker-q60v.onrender.com">
+    <a href="https://finance-tracker-5kjb.onrender.com">
       <img src="https://img.shields.io/badge/🔌_API_Status-000000?style=for-the-badge&logo=render&logoColor=white" alt="API Status" />
     </a>
   </p>

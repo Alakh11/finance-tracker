@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://finance-tracker-q60v.onrender.com',
+        target: 'https://finance-tracker-5kjb.onrender.com',
         changeOrigin: true,
         secure: false,
       },

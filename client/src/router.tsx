@@ -29,7 +29,7 @@ interface RouterContext {
   handleLogout: () => void;
 }
 
-const API_URL = "https://finance-tracker-q60v.onrender.com";
+const API_URL = "https://finance-tracker-5kjb.onrender.com";
 
 // --- 1. Root Route (Layout) ---
 const rootRoute = createRootRouteWithContext<RouterContext>()({

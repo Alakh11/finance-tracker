@@ -13,7 +13,7 @@ export default function BudgetForm({ categories, onClose, userEmail }: Props) {
   const [selectedCat, setSelectedCat] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const API_URL = "https://finance-tracker-q60v.onrender.com";
+  const API_URL = "https://finance-tracker-5kjb.onrender.com";
 
   const handleSaveBudget = async (e: React.FormEvent) => {
     e.preventDefault();
